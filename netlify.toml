@@ -1,12 +1,6 @@
 [build]
   functions = "netlify/functions"
 
-[functions]
-  node_bundler = "esbuild"
-
-[functions."generate"]
-  timeout = 60
-
 [[redirects]]
   from = "/api/generate"
   to = "/.netlify/functions/generate"
