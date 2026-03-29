@@ -1377,10 +1377,17 @@ Notes: ${wiz.notes || 'none'}`;
     });
 
     const data = await res.json();
-    if (data.error) throw new Error(data.error.message);
 
-    const text = data.content[0].text.replace(/```json|```/g, '').trim();
-    const plan = JSON.parse(text);
+    if (data.error) throw new Error(data.error.message);
+    if (!data.content || !data.content[0]) throw new Error('Empty response from AI — please try again.');
+
+    let text = data.content[0].text || '';
+    text = text.replace(/```json|```/g, '').trim();
+
+    // Extract JSON if wrapped in other text
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Could not parse plan — please try again.');
+    const plan = JSON.parse(jsonMatch[0]);
 
     // Create garden object
     const garden = {
