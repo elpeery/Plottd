@@ -1368,38 +1368,28 @@ Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
 Soil: ${wiz.soil}, Preferences: ${wiz.preferences.join(', ') || 'none'}
 Notes: ${wiz.notes || 'none'}`;
 
-  const fullSystem = `You are an expert master gardener. Return ONLY valid JSON. No markdown, no fences, no text outside the JSON object.
+  const fullSystem = `You are a master gardener. Return ONLY a JSON object. No text before or after. No markdown.
+
+The JSON must follow this structure exactly. Do not add extra fields. Do not truncate.
 
 {
-  "summary": "2-3 sentences",
-  "zone": "6b",
-  "climate": "description",
-  "frostDates": { "lastSpring": "April 15", "firstFall": "October 15" },
-  "metrics": { "estimatedCost": "$X-$Y", "weeklyHours": "X-Y", "harvestWindow": "Jun-Oct", "totalPlants": 6 },
-  "soilPlan": { "amendments": ["item"], "compostNeeded": "X cu ft", "ph": "6.5", "notes": "advice" },
-  "plants": [
-    { "name": "Tomato", "variety": "Celebrity", "qty": "2 plants", "startMethod": "Buy transplant", "startWeek": "After last frost", "transplantWeek": "After last frost", "daysToMaturity": 70, "spacing": "24 in", "depthToPlant": "deep", "waterNeeds": "Regular", "sunNeeds": "Full sun", "companions": ["Basil"], "avoid": ["Fennel"], "harvestMonths": [7,8], "successionInterval": "N/A", "notes": "tip", "affiliateSearch": "Celebrity tomato seeds" }
-  ],
-  "successionPlan": "2 sentences",
-  "calendar": [
-    { "month": "April", "monthNum": 4, "tasks": [{ "text": "task", "type": "sow", "plants": ["Tomato"] }] }
-  ],
-  "pestWatch": [
-    { "name": "Aphids", "type": "insect", "affects": ["Tomato"], "symptoms": "sticky residue", "prevention": "inspect weekly", "organicTreatment": "neem oil", "conventionalTreatment": "insecticidal soap", "severity": "medium" }
-  ],
-  "shoppingList": [
-    { "category": "seeds", "item": "Tomato seeds", "qty": "1 packet", "estimatedCost": "$3.50", "brand": "Baker Creek", "searchTerm": "Celebrity tomato seeds", "whereToBuy": "online" }
-  ],
-  "shoppingTotal": "$150-$250",
-  "proTips": ["tip 1", "tip 2", "tip 3"]
+  "summary": "string",
+  "zone": "string",
+  "climate": "string",
+  "frostDates": { "lastSpring": "string", "firstFall": "string" },
+  "metrics": { "estimatedCost": "string", "weeklyHours": "string", "harvestWindow": "string", "totalPlants": 5 },
+  "soilPlan": { "amendments": ["string"], "compostNeeded": "string", "ph": "string", "notes": "string" },
+  "plants": [{ "name": "string", "variety": "string", "qty": "string", "startMethod": "string", "startWeek": "string", "transplantWeek": "string", "daysToMaturity": 70, "spacing": "string", "depthToPlant": "string", "waterNeeds": "string", "sunNeeds": "string", "companions": ["string"], "avoid": ["string"], "harvestMonths": [7], "successionInterval": "string", "notes": "string", "affiliateSearch": "string" }],
+  "successionPlan": "string",
+  "calendar": [{ "month": "string", "monthNum": 1, "tasks": [{ "text": "string", "type": "string", "plants": ["string"] }] }],
+  "pestWatch": [{ "name": "string", "type": "string", "affects": ["string"], "symptoms": "string", "prevention": "string", "organicTreatment": "string", "conventionalTreatment": "string", "severity": "string" }],
+  "shoppingList": [{ "category": "seeds", "item": "string", "qty": "string", "estimatedCost": "string", "brand": "string", "searchTerm": "string", "whereToBuy": "string" }],
+  "shoppingTotal": "string",
+  "proTips": ["string"]
 }
 
-Rules:
-- shoppingList is a flat array. Each item has: category, item, qty, estimatedCost, brand, searchTerm, whereToBuy.
-- shoppingTotal is a top-level string, NOT inside shoppingList.
-- 5-6 plants max. 3-4 shopping items per category max. 3 pests max.
-- Only calendar months with real tasks.
-- Be specific to their ZIP, zone, frost dates, soil, and goals.`;
+Limits: 5 plants, 3 pests, 8 shopping items total, 3 pro tips, only months with tasks.
+Be specific to their location, zone, frost dates, soil, and goals.`;
 
   try {
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
