@@ -1368,49 +1368,43 @@ Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
 Soil: ${wiz.soil}, Preferences: ${wiz.preferences.join(', ') || 'none'}
 Notes: ${wiz.notes || 'none'}`;
 
-  const fullSystem = `You are an expert master gardener. Return ONLY valid JSON, no markdown, no fences.
-Generate a complete garden plan with this exact structure:
+  const fullSystem = `You are an expert master gardener. Return ONLY valid JSON. No markdown, no fences, no extra text before or after the JSON.
+
+Use this exact structure:
 {
-  "summary": "2-3 sentence personalized overview",
-  "zone": "USDA zone e.g. 6b",
-  "climate": "brief climate description",
-  "frostDates": { "lastSpring": "e.g. April 15", "firstFall": "e.g. October 15" },
-  "metrics": { "estimatedCost": "$X-$Y", "weeklyHours": "X-Y", "harvestWindow": "Month-Month", "totalPlants": 7 },
-  "soilPlan": { "amendments": ["specific amendment with amount"], "compostNeeded": "X cubic feet", "ph": "6.0-7.0", "notes": "specific soil advice" },
+  "summary": "2-3 sentence overview",
+  "zone": "6b",
+  "climate": "humid continental",
+  "frostDates": { "lastSpring": "April 15", "firstFall": "October 15" },
+  "metrics": { "estimatedCost": "$150-$250", "weeklyHours": "3-5", "harvestWindow": "June-October", "totalPlants": 6 },
+  "soilPlan": { "amendments": ["2 bags composted manure", "1 cup balanced fertilizer per bed"], "compostNeeded": "3 cubic feet", "ph": "6.0-7.0", "notes": "Amend beds 2 weeks before planting" },
   "plants": [
-    { "name": "Tomato", "variety": "Cherokee Purple", "qty": "2 packets",
-      "startMethod": "Start indoors", "startWeek": "6-8 weeks before last frost",
-      "transplantWeek": "After last frost", "daysToMaturity": 80,
-      "spacing": "24 inches", "depthToPlant": "1/4 inch",
-      "waterNeeds": "Regular", "sunNeeds": "Full sun",
-      "companions": ["Basil", "Marigold"], "avoid": ["Fennel"],
-      "harvestMonths": [7,8,9], "successionInterval": "N/A",
-      "notes": "Specific growing tip", "affiliateSearch": "Cherokee Purple tomato seeds" }
+    { "name": "Tomato", "variety": "Cherokee Purple", "qty": "2 packets", "startMethod": "Start indoors", "startWeek": "6-8 weeks before last frost", "transplantWeek": "After last frost", "daysToMaturity": 80, "spacing": "24 inches", "depthToPlant": "1/4 inch", "waterNeeds": "Regular", "sunNeeds": "Full sun", "companions": ["Basil", "Marigold"], "avoid": ["Fennel"], "harvestMonths": [7,8,9], "successionInterval": "N/A", "notes": "Pinch suckers for larger fruit", "affiliateSearch": "Cherokee Purple tomato seeds" }
   ],
-  "successionPlan": "3-4 sentence succession strategy",
+  "successionPlan": "Stagger lettuce and radish sowings every 2 weeks from early spring through fall for continuous harvest.",
   "calendar": [
-    { "month": "March", "monthNum": 3, "tasks": [
-      { "text": "Specific task", "type": "sow", "plants": ["Tomato"] }
-    ]}
+    { "month": "February", "monthNum": 2, "tasks": [{ "text": "Order seeds", "type": "general", "plants": [] }] },
+    { "month": "March", "monthNum": 3, "tasks": [{ "text": "Start tomatoes indoors", "type": "sow", "plants": ["Tomato"] }] }
   ],
   "pestWatch": [
-    { "name": "Aphids", "type": "insect", "affects": ["Tomato"],
-      "symptoms": "Curled leaves, sticky residue",
-      "prevention": "Inspect weekly, encourage beneficials",
-      "organicTreatment": "Neem oil spray",
-      "conventionalTreatment": "Insecticidal soap", "severity": "medium" }
+    { "name": "Aphids", "type": "insect", "affects": ["Tomato", "Pepper"], "symptoms": "Curled leaves, sticky residue", "prevention": "Inspect weekly", "organicTreatment": "Neem oil spray", "conventionalTreatment": "Insecticidal soap", "severity": "medium" }
   ],
-  "shoppingList": {
-    "seeds": [{ "item": "Tomato seeds", "qty": "1 packet", "estimatedCost": "$3.50", "brand": "Baker Creek", "searchTerm": "Cherokee Purple tomato seeds" }],
-    "amendments": [{ "item": "Compost", "qty": "3 cu ft", "estimatedCost": "$25", "whereToBuy": "garden center" }],
-    "tools": [{ "item": "Hand trowel", "qty": "1", "estimatedCost": "$12", "whereToBuy": "hardware store" }],
-    "infrastructure": [{ "item": "Tomato cage", "qty": "4", "estimatedCost": "$20", "whereToBuy": "hardware store" }],
-    "totalEstimate": "$150-$250"
-  },
-CRITICAL: The shoppingList.infrastructure array must end with ] before totalEstimate. totalEstimate is a string field on shoppingList, NOT an item object. Never put totalEstimate inside an array item.
-  "proTips": ["Specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
+  "shoppingList": [
+    { "category": "seeds", "item": "Cherokee Purple Tomato", "qty": "1 packet", "estimatedCost": "$3.50", "brand": "Baker Creek", "searchTerm": "Cherokee Purple tomato seeds", "whereToBuy": "online" },
+    { "category": "amendments", "item": "Compost", "qty": "3 cubic feet", "estimatedCost": "$25", "brand": "", "searchTerm": "garden compost", "whereToBuy": "garden center" },
+    { "category": "tools", "item": "Hand trowel", "qty": "1", "estimatedCost": "$12", "brand": "", "searchTerm": "hand trowel", "whereToBuy": "hardware store" },
+    { "category": "infrastructure", "item": "Tomato cage", "qty": "4", "estimatedCost": "$20", "brand": "", "searchTerm": "tomato cage", "whereToBuy": "hardware store" }
+  ],
+  "shoppingTotal": "$150-$250",
+  "proTips": ["Tip 1", "Tip 2", "Tip 3", "Tip 4", "Tip 5"]
 }
-Include 6-8 plants. Only calendar months with real tasks. Be very specific to their region, zone, frost dates, soil, and goals.`;
+
+IMPORTANT RULES:
+- shoppingList is a FLAT ARRAY of objects, each with a "category" field. NOT nested by category.
+- shoppingTotal is a simple string field at the top level, NOT inside shoppingList.
+- Include 6-8 plants specific to their region and goals.
+- Only include calendar months that have real tasks.
+- Be very specific to their ZIP, zone, frost dates, soil type, and preferences.`;
 
   try {
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
@@ -1842,7 +1836,25 @@ function renderCalendar(garden) {
 
 // ─── SHOPPING ─────────────────────────────────────────────────────────
 function renderShopping(garden) {
-  const shop = garden.plan.shoppingList;
+  const plan = garden.plan;
+  // Support both flat array (new) and nested object (old) formats
+  let items = [];
+  if (Array.isArray(plan.shoppingList)) {
+    items = plan.shoppingList;
+  } else if (plan.shoppingList) {
+    const s = plan.shoppingList;
+    (s.seeds||[]).forEach(i => items.push({...i, category:'seeds'}));
+    (s.amendments||[]).forEach(i => items.push({...i, category:'amendments'}));
+    (s.tools||[]).forEach(i => items.push({...i, category:'tools'}));
+    (s.infrastructure||[]).forEach(i => items.push({...i, category:'infrastructure'}));
+  }
+  const shop = { 
+    seeds: items.filter(i=>i.category==='seeds'),
+    amendments: items.filter(i=>i.category==='amendments'),
+    tools: items.filter(i=>i.category==='tools'),
+    infrastructure: items.filter(i=>i.category==='infrastructure'),
+    totalEstimate: plan.shoppingTotal || plan.shoppingList?.totalEstimate || '—'
+  };
 
   function shopSection(title, items, showBrand) {
     if (!items?.length) return '';
