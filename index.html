@@ -1327,10 +1327,25 @@ async function streamAPI(system, userContent) {
   const end = fullText.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('Could not parse response — please try again.');
   let jsonStr = fullText.slice(start, end + 1);
-  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+  // Fix common JSON issues
+  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1'); // trailing commas
+  jsonStr = jsonStr.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":'); // unquoted keys
   try {
     return JSON.parse(jsonStr);
   } catch(e) {
+    // Last resort: try to extract whatever valid JSON we can
+    console.error('JSON parse error:', e.message);
+    console.error('JSON length:', jsonStr.length);
+    // Try truncating to last valid closing brace
+    for (let i = jsonStr.length - 1; i > 0; i--) {
+      if (jsonStr[i] === '}') {
+        try {
+          const truncated = jsonStr.slice(0, i + 1);
+          const parsed = JSON.parse(truncated);
+          return parsed;
+        } catch(e2) { continue; }
+      }
+    }
     throw new Error('Could not parse AI response — please try again.');
   }
 }
