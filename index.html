@@ -1282,8 +1282,10 @@ function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('show');
 }
 
+let _apiCallCounter = 0;
 async function streamAPI(system, userContent) {
-  const res = await fetch('/api/generate', {
+  const endpoint = '/api/generate' + (++_apiCallCounter);
+  const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1368,34 +1370,77 @@ Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
 Soil: ${wiz.soil}, Preferences: ${wiz.preferences.join(', ') || 'none'}
 Notes: ${wiz.notes || 'none'}`;
 
-  const fullSystem = `You are a master gardener. Return ONLY a JSON object. No text before or after. No markdown.
+  const context = gardenContext;
 
-The JSON must follow this structure exactly. Do not add extra fields. Do not truncate.
-
+  // CALL 1: Core info + plants
+  const sys1 = `You are a master gardener. Return ONLY valid JSON, no markdown.
 {
-  "summary": "string",
-  "zone": "string",
-  "climate": "string",
-  "frostDates": { "lastSpring": "string", "firstFall": "string" },
-  "metrics": { "estimatedCost": "string", "weeklyHours": "string", "harvestWindow": "string", "totalPlants": 5 },
-  "soilPlan": { "amendments": ["string"], "compostNeeded": "string", "ph": "string", "notes": "string" },
-  "plants": [{ "name": "string", "variety": "string", "qty": "string", "startMethod": "string", "startWeek": "string", "transplantWeek": "string", "daysToMaturity": 70, "spacing": "string", "depthToPlant": "string", "waterNeeds": "string", "sunNeeds": "string", "companions": ["string"], "avoid": ["string"], "harvestMonths": [7], "successionInterval": "string", "notes": "string", "affiliateSearch": "string" }],
-  "successionPlan": "string",
-  "calendar": [{ "month": "string", "monthNum": 1, "tasks": [{ "text": "string", "type": "string", "plants": ["string"] }] }],
-  "pestWatch": [{ "name": "string", "type": "string", "affects": ["string"], "symptoms": "string", "prevention": "string", "organicTreatment": "string", "conventionalTreatment": "string", "severity": "string" }],
-  "shoppingList": [{ "category": "seeds", "item": "string", "qty": "string", "estimatedCost": "string", "brand": "string", "searchTerm": "string", "whereToBuy": "string" }],
-  "shoppingTotal": "string",
-  "proTips": ["string"]
+  "summary": "2-3 sentence overview specific to this gardener",
+  "zone": "USDA zone",
+  "climate": "climate description",
+  "frostDates": { "lastSpring": "date", "firstFall": "date" },
+  "metrics": { "estimatedCost": "$X-$Y", "weeklyHours": "X-Y", "harvestWindow": "Mon-Mon", "totalPlants": 6 },
+  "soilPlan": { "amendments": ["specific amendment"], "compostNeeded": "X cu ft", "ph": "X.X-X.X", "notes": "specific advice" },
+  "plants": [
+    { "name": "name", "variety": "specific variety", "qty": "amount", "startMethod": "method",
+      "startWeek": "timing", "transplantWeek": "timing", "daysToMaturity": 75,
+      "spacing": "X inches", "depthToPlant": "depth", "waterNeeds": "level",
+      "sunNeeds": "requirement", "companions": ["plant"], "avoid": ["plant"],
+      "harvestMonths": [7,8], "successionInterval": "interval",
+      "notes": "specific tip", "affiliateSearch": "search term" }
+  ],
+  "successionPlan": "3-4 sentence strategy"
 }
+Include 6-8 plants. Be very specific to their region, zone, and goals.`;
 
-Limits: 5 plants, 3 pests, 8 shopping items total, 3 pro tips, only months with tasks.
-Be specific to their location, zone, frost dates, soil, and goals.`;
+  // CALL 2: Calendar
+  const sys2 = `You are a master gardener. Return ONLY valid JSON, no markdown.
+{
+  "calendar": [
+    { "month": "January", "monthNum": 1, "tasks": [
+      { "text": "specific task", "type": "sow|plant|harvest|pest|general", "plants": ["plant name"] }
+    ]}
+  ]
+}
+Include all months that have real tasks. Be specific to their frost dates and plant list.`;
+
+  // CALL 3: Pests
+  const sys3 = `You are a master gardener. Return ONLY valid JSON, no markdown.
+{
+  "pestWatch": [
+    { "name": "pest name", "type": "insect|disease|wildlife",
+      "affects": ["plant"], "symptoms": "what to look for",
+      "prevention": "prevention tip", "organicTreatment": "organic method",
+      "conventionalTreatment": "conventional option", "severity": "low|medium|high" }
+  ]
+}
+Include 4-6 pests most relevant to their specific plant list and region.`;
+
+  // CALL 4: Shopping + tips
+  const sys4 = `You are a master gardener. Return ONLY valid JSON, no markdown.
+{
+  "shoppingList": [
+    { "category": "seeds", "item": "name", "qty": "amount", "estimatedCost": "$X.XX",
+      "brand": "brand name", "searchTerm": "search term", "whereToBuy": "where" }
+  ],
+  "shoppingTotal": "$X-$Y",
+  "proTips": ["specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
+}
+Categories: seeds, amendments, tools, infrastructure. Include everything needed. Be specific to their plant list.`;
 
   try {
+    _apiCallCounter = 0;
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
-    document.getElementById('loadingSub').textContent = 'This takes about 20-30 seconds';
+    document.getElementById('loadingSub').textContent = 'Generating 4 sections in parallel...';
 
-    const plan = await streamAPI(fullSystem, gardenContext);
+    const [part1, part2, part3, part4] = await Promise.all([
+      streamAPI(sys1, context),
+      streamAPI(sys2, context),
+      streamAPI(sys3, context),
+      streamAPI(sys4, context)
+    ]);
+
+    const plan = { ...part1, ...part2, ...part3, ...part4 };
 
     const garden = {
       id: Date.now().toString(),
