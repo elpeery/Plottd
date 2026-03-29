@@ -1316,66 +1316,33 @@ Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
 Soil: ${wiz.soil}, Preferences: ${wiz.preferences.join(', ') || 'none'}
 Notes: ${wiz.notes || 'none'}`;
 
-  const systemPart1 = `You are an expert master gardener. Return ONLY valid JSON, no markdown, no fences.
-Generate this exact JSON structure with real values specific to the gardener's region and needs:
-{
-  "summary": "2-3 sentence personalized overview",
-  "zone": "USDA zone e.g. 6b",
-  "climate": "brief climate description",
-  "frostDates": { "lastSpring": "e.g. April 15", "firstFall": "e.g. October 15" },
-  "metrics": { "estimatedCost": "$X-$Y", "weeklyHours": "X-Y", "harvestWindow": "Month-Month", "totalPlants": 7 },
-  "soilPlan": { "amendments": ["specific amendment with amount"], "compostNeeded": "X cubic feet", "ph": "6.0-7.0", "notes": "specific soil advice" },
-  "plants": [
-    { "name": "Common name", "variety": "Specific variety", "qty": "2 packets",
-      "startMethod": "Direct sow", "startWeek": "2 weeks before last frost",
-      "transplantWeek": "After last frost", "daysToMaturity": 75,
-      "spacing": "12 inches", "depthToPlant": "1/4 inch",
-      "waterNeeds": "Regular", "sunNeeds": "Full sun",
-      "companions": ["Basil", "Marigold"], "avoid": ["Fennel"],
-      "harvestMonths": [7,8,9], "successionInterval": "2 weeks",
-      "notes": "specific growing tip", "affiliateSearch": "Cherokee Purple tomato seeds" }
-  ],
-  "successionPlan": "3-4 sentence succession strategy specific to their region",
-  "calendar": [
-    { "month": "March", "monthNum": 3, "tasks": [
-      { "text": "specific task description", "type": "sow", "plants": ["Tomato"] }
-    ]}
-  ]
-}
-Include 6-8 plants. Only include calendar months that have real tasks.`;
+  const sysParts = {
+    plants: `Expert master gardener. Return ONLY valid JSON, no markdown, no fences.
+Return this structure with real specific values:
+{"summary":"2-3 sentence overview","zone":"e.g. 6b","climate":"description","frostDates":{"lastSpring":"April 15","firstFall":"October 15"},"metrics":{"estimatedCost":"$X-$Y","weeklyHours":"X-Y","harvestWindow":"Jun-Sep","totalPlants":6},"soilPlan":{"amendments":["item with qty"],"compostNeeded":"X cu ft","ph":"6.0-7.0","notes":"advice"},"plants":[{"name":"Tomato","variety":"Cherokee Purple","qty":"2 packets","startMethod":"Start indoors","startWeek":"6-8 weeks before last frost","transplantWeek":"After last frost","daysToMaturity":80,"spacing":"24 inches","depthToPlant":"1/4 inch","waterNeeds":"Regular","sunNeeds":"Full sun","companions":["Basil"],"avoid":["Fennel"],"harvestMonths":[7,8,9],"successionInterval":"N/A","notes":"tip","affiliateSearch":"Cherokee Purple tomato seeds"}],"successionPlan":"2-3 sentences"}
+Include 5-6 plants tailored to their region, space, and goals.`,
 
-  const systemPart2 = `You are an expert master gardener. Return ONLY valid JSON, no markdown, no fences.
-Generate this exact JSON structure for the provided garden and plant list:
-{
-  "pestWatch": [
-    { "name": "Pest or disease name", "type": "insect",
-      "affects": ["Tomato"], "symptoms": "what to look for",
-      "prevention": "specific prevention tip",
-      "organicTreatment": "organic treatment method",
-      "conventionalTreatment": "conventional option",
-      "severity": "high" }
-  ],
-  "shoppingList": {
-    "seeds": [{ "item": "Tomato seeds", "qty": "1 packet", "estimatedCost": "$3.50", "brand": "Baker Creek", "searchTerm": "Cherokee Purple tomato seeds" }],
-    "amendments": [{ "item": "Compost", "qty": "3 cubic feet", "estimatedCost": "$25", "whereToBuy": "garden center" }],
-    "tools": [{ "item": "Hand trowel", "qty": "1", "estimatedCost": "$15", "whereToBuy": "hardware store" }],
-    "infrastructure": [{ "item": "Tomato cages", "qty": "4", "estimatedCost": "$20", "whereToBuy": "hardware store" }],
-    "totalEstimate": "$150-$250"
-  },
-  "proTips": ["specific tip 1", "specific tip 2", "specific tip 3", "specific tip 4", "specific tip 5"]
-}
-Include 4-5 pests/diseases most relevant to their plant list and region.`;
+    calendar: `Expert master gardener. Return ONLY valid JSON, no markdown, no fences.
+Return a planting calendar for the provided garden context:
+{"calendar":[{"month":"March","monthNum":3,"tasks":[{"text":"Start tomato seeds indoors under grow lights","type":"sow","plants":["Tomato"]}]}]}
+Only include months that have real tasks. Be specific to their region and frost dates.`,
+
+    shopping: `Expert master gardener. Return ONLY valid JSON, no markdown, no fences.
+Return pest watch, shopping list and tips for the provided garden:
+{"pestWatch":[{"name":"Aphids","type":"insect","affects":["Tomato","Pepper"],"symptoms":"Curled leaves, sticky residue","prevention":"Encourage ladybugs, inspect weekly","organicTreatment":"Neem oil spray","conventionalTreatment":"Insecticidal soap","severity":"medium"}],"shoppingList":{"seeds":[{"item":"Tomato seeds","qty":"1 packet","estimatedCost":"$3.50","brand":"Baker Creek","searchTerm":"Cherokee Purple tomato seeds"}],"amendments":[{"item":"Compost","qty":"3 cu ft","estimatedCost":"$25","whereToBuy":"garden center"}],"tools":[{"item":"Hand trowel","qty":"1","estimatedCost":"$12","whereToBuy":"hardware store"}],"infrastructure":[{"item":"Tomato cage","qty":"4","estimatedCost":"$20","whereToBuy":"hardware store"}],"totalEstimate":"$150-$250"},"proTips":["tip1","tip2","tip3"]}
+Include 3-5 pests relevant to their plants. Shopping list should cover all their plants.`
+  };
 
   try {
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
 
-    const plantList = gardenContext;
-    const [part1, part2] = await Promise.all([
-      callAPI('/api/generate-part1', systemPart1, gardenContext),
-      callAPI('/api/generate-part2', systemPart2, gardenContext)
+    const [part1, part2, part3] = await Promise.all([
+      callAPI('/api/generate-part1', sysParts.plants, gardenContext),
+      callAPI('/api/generate-part2', sysParts.calendar, gardenContext),
+      callAPI('/api/generate-part3', sysParts.shopping, gardenContext)
     ]);
 
-    const plan = { ...part1, ...part2 };
+    const plan = { ...part1, ...part2, ...part3 };
 
     const garden = {
       id: Date.now().toString(),
