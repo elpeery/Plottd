@@ -1329,7 +1329,10 @@ async function streamAPI(system, userContent) {
   let jsonStr = fullText.slice(start, end + 1);
   // Fix common JSON issues
   jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1'); // trailing commas
-  jsonStr = jsonStr.replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":'); // unquoted keys
+  // Fix corrupted infrastructure array where totalEstimate leaks into last item
+  jsonStr = jsonStr.replace(/"whereToBuy":\s*"[^"]*"\s*},\s*\{\s*"item":\s*""totalEstimate":/g, 
+    (m) => m.split('{ "item": ""totalEstimate":')[0] + '],"totalEstimate":');
+  jsonStr = jsonStr.replace(/\{ "item": ""totalEstimate":\s*"([^"]*)"\s*\}/g, '],"totalEstimate":"$1"');
   try {
     return JSON.parse(jsonStr);
   } catch(e) {
@@ -1404,6 +1407,7 @@ Generate a complete garden plan with this exact structure:
     "infrastructure": [{ "item": "Tomato cage", "qty": "4", "estimatedCost": "$20", "whereToBuy": "hardware store" }],
     "totalEstimate": "$150-$250"
   },
+CRITICAL: The shoppingList.infrastructure array must end with ] before totalEstimate. totalEstimate is a string field on shoppingList, NOT an item object. Never put totalEstimate inside an array item.
   "proTips": ["Specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
 }
 Include 6-8 plants. Only calendar months with real tasks. Be very specific to their region, zone, frost dates, soil, and goals.`;
