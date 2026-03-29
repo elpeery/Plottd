@@ -1,5 +1,3 @@
-export const config = { runtime: 'edge' };
-
 export default async function handler(req) {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
   const { context } = await req.json();
