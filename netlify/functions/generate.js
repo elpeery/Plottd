@@ -16,6 +16,14 @@ exports.handler = async function(event) {
 
     const data = await response.json();
 
+    if (!response.ok) {
+      return {
+        statusCode: response.status,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: { message: data.error?.message || 'API error' } })
+      };
+    }
+
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
@@ -24,6 +32,7 @@ exports.handler = async function(event) {
   } catch (err) {
     return {
       statusCode: 500,
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ error: { message: err.message } })
     };
   }
