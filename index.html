@@ -1282,28 +1282,51 @@ function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('show');
 }
 
-async function callAPI(endpoint, system, userContent) {
-  const res = await fetch(endpoint, {
+async function streamAPI(system, userContent) {
+  const res = await fetch('/api/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2500,
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
       system: system,
       messages: [{ role: 'user', content: userContent }]
     })
   });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  if (!data.content || !data.content[0]) throw new Error('Empty response — please try again.');
-  let text = data.content[0].text || '';
-  text = text.replace(/```json|```/g, '').trim();
-  // Find the outermost JSON object
-  const start = text.indexOf('{');
-  const end = text.lastIndexOf('}');
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error?.message || 'API error');
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    const lines = chunk.split('\n');
+    for (const line of lines) {
+      if (line.startsWith('data: ')) {
+        const data = line.slice(6).trim();
+        if (data === '[DONE]') continue;
+        try {
+          const parsed = JSON.parse(data);
+          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
+            fullText += parsed.delta.text;
+          }
+        } catch(e) {}
+      }
+    }
+  }
+
+  fullText = fullText.replace(/```json|```/g, '').trim();
+  const start = fullText.indexOf('{');
+  const end = fullText.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('Could not parse response — please try again.');
-  let jsonStr = text.slice(start, end + 1);
-  // Fix common Haiku JSON issues: trailing commas
+  let jsonStr = fullText.slice(start, end + 1);
   jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
   try {
     return JSON.parse(jsonStr);
@@ -1325,33 +1348,54 @@ Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
 Soil: ${wiz.soil}, Preferences: ${wiz.preferences.join(', ') || 'none'}
 Notes: ${wiz.notes || 'none'}`;
 
-  const sysParts = {
-    plants: `Expert master gardener. Return ONLY valid JSON, no markdown, no fences.
-Return this structure with real specific values:
-{"summary":"2-3 sentence overview","zone":"e.g. 6b","climate":"description","frostDates":{"lastSpring":"April 15","firstFall":"October 15"},"metrics":{"estimatedCost":"$X-$Y","weeklyHours":"X-Y","harvestWindow":"Jun-Sep","totalPlants":6},"soilPlan":{"amendments":["item with qty"],"compostNeeded":"X cu ft","ph":"6.0-7.0","notes":"advice"},"plants":[{"name":"Tomato","variety":"Cherokee Purple","qty":"2 packets","startMethod":"Start indoors","startWeek":"6-8 weeks before last frost","transplantWeek":"After last frost","daysToMaturity":80,"spacing":"24 inches","depthToPlant":"1/4 inch","waterNeeds":"Regular","sunNeeds":"Full sun","companions":["Basil"],"avoid":["Fennel"],"harvestMonths":[7,8,9],"successionInterval":"N/A","notes":"tip","affiliateSearch":"Cherokee Purple tomato seeds"}],"successionPlan":"2-3 sentences"}
-Include 5-6 plants tailored to their region, space, and goals.`,
-
-    calendar: `Expert master gardener. Return ONLY valid JSON, no markdown, no fences.
-Return a planting calendar for the provided garden context:
-{"calendar":[{"month":"March","monthNum":3,"tasks":[{"text":"Start tomato seeds indoors under grow lights","type":"sow","plants":["Tomato"]}]}]}
-Only include months that have real tasks. Be specific to their region and frost dates.`,
-
-    shopping: `Expert master gardener. Return ONLY valid JSON, no markdown, no fences.
-Return pest watch, shopping list and tips for the provided garden:
-{"pestWatch":[{"name":"Aphids","type":"insect","affects":["Tomato","Pepper"],"symptoms":"Curled leaves, sticky residue","prevention":"Encourage ladybugs, inspect weekly","organicTreatment":"Neem oil spray","conventionalTreatment":"Insecticidal soap","severity":"medium"}],"shoppingList":{"seeds":[{"item":"Tomato seeds","qty":"1 packet","estimatedCost":"$3.50","brand":"Baker Creek","searchTerm":"Cherokee Purple tomato seeds"}],"amendments":[{"item":"Compost","qty":"3 cu ft","estimatedCost":"$25","whereToBuy":"garden center"}],"tools":[{"item":"Hand trowel","qty":"1","estimatedCost":"$12","whereToBuy":"hardware store"}],"infrastructure":[{"item":"Tomato cage","qty":"4","estimatedCost":"$20","whereToBuy":"hardware store"}],"totalEstimate":"$150-$250"},"proTips":["tip1","tip2","tip3"]}
-Include 3-5 pests relevant to their plants. Shopping list should cover all their plants.`
-  };
+  const fullSystem = `You are an expert master gardener. Return ONLY valid JSON, no markdown, no fences.
+Generate a complete garden plan with this exact structure:
+{
+  "summary": "2-3 sentence personalized overview",
+  "zone": "USDA zone e.g. 6b",
+  "climate": "brief climate description",
+  "frostDates": { "lastSpring": "e.g. April 15", "firstFall": "e.g. October 15" },
+  "metrics": { "estimatedCost": "$X-$Y", "weeklyHours": "X-Y", "harvestWindow": "Month-Month", "totalPlants": 7 },
+  "soilPlan": { "amendments": ["specific amendment with amount"], "compostNeeded": "X cubic feet", "ph": "6.0-7.0", "notes": "specific soil advice" },
+  "plants": [
+    { "name": "Tomato", "variety": "Cherokee Purple", "qty": "2 packets",
+      "startMethod": "Start indoors", "startWeek": "6-8 weeks before last frost",
+      "transplantWeek": "After last frost", "daysToMaturity": 80,
+      "spacing": "24 inches", "depthToPlant": "1/4 inch",
+      "waterNeeds": "Regular", "sunNeeds": "Full sun",
+      "companions": ["Basil", "Marigold"], "avoid": ["Fennel"],
+      "harvestMonths": [7,8,9], "successionInterval": "N/A",
+      "notes": "Specific growing tip", "affiliateSearch": "Cherokee Purple tomato seeds" }
+  ],
+  "successionPlan": "3-4 sentence succession strategy",
+  "calendar": [
+    { "month": "March", "monthNum": 3, "tasks": [
+      { "text": "Specific task", "type": "sow", "plants": ["Tomato"] }
+    ]}
+  ],
+  "pestWatch": [
+    { "name": "Aphids", "type": "insect", "affects": ["Tomato"],
+      "symptoms": "Curled leaves, sticky residue",
+      "prevention": "Inspect weekly, encourage beneficials",
+      "organicTreatment": "Neem oil spray",
+      "conventionalTreatment": "Insecticidal soap", "severity": "medium" }
+  ],
+  "shoppingList": {
+    "seeds": [{ "item": "Tomato seeds", "qty": "1 packet", "estimatedCost": "$3.50", "brand": "Baker Creek", "searchTerm": "Cherokee Purple tomato seeds" }],
+    "amendments": [{ "item": "Compost", "qty": "3 cu ft", "estimatedCost": "$25", "whereToBuy": "garden center" }],
+    "tools": [{ "item": "Hand trowel", "qty": "1", "estimatedCost": "$12", "whereToBuy": "hardware store" }],
+    "infrastructure": [{ "item": "Tomato cage", "qty": "4", "estimatedCost": "$20", "whereToBuy": "hardware store" }],
+    "totalEstimate": "$150-$250"
+  },
+  "proTips": ["Specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
+}
+Include 6-8 plants. Only calendar months with real tasks. Be very specific to their region, zone, frost dates, soil, and goals.`;
 
   try {
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
+    document.getElementById('loadingSub').textContent = 'This takes about 20-30 seconds';
 
-    const [part1, part2, part3] = await Promise.all([
-      callAPI('/api/generate-part1', sysParts.plants, gardenContext),
-      callAPI('/api/generate-part2', sysParts.calendar, gardenContext),
-      callAPI('/api/generate-part3', sysParts.shopping, gardenContext)
-    ]);
-
-    const plan = { ...part1, ...part2, ...part3 };
+    const plan = await streamAPI(fullSystem, gardenContext);
 
     const garden = {
       id: Date.now().toString(),
