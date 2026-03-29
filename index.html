@@ -1357,26 +1357,88 @@ Notes: ${wiz.notes || 'none'}`;
 
     const plan = { ...part1, ...part3, ...part4 };
 
-    // Pre-populate bed with AI plant suggestions
+    // Smart bed layout algorithm
     const autoBedData = {};
+    const autoBedNotes = {}; // bed index -> layout notes
     const plants = plan.plants || [];
-    const cols = wiz.bedLength || 8;
-    const rows = wiz.bedWidth || 4;
-    const bedsCount = wiz.beds || 1;
-    let plantIdx = 0;
-    for (let bed = 0; bed < bedsCount && plantIdx < plants.length; bed++) {
-      for (let r = 0; r < rows && plantIdx < plants.length; r++) {
-        const p = plants[plantIdx];
-        const emoji = getEmoji(p.name);
-        // Fill a row per plant based on spacing
-        const spacingFt = parseInt(p.spacing) || 12;
-        const cellsPerPlant = Math.max(1, Math.round(spacingFt / 12));
-        for (let c = 0; c < cols && c < cellsPerPlant * 2; c += cellsPerPlant) {
-          const key = bed + '-' + (r * cols + c);
-          autoBedData[key] = { emoji, name: p.name };
+    const cols = parseInt(wiz.bedLength) || 8;
+    const rows = parseInt(wiz.bedWidth) || 4;
+    const bedsCount = parseInt(wiz.beds) || 1;
+
+    function smartLayoutBed(bedIdx, bedPlants, cols, rows) {
+      const cells = {};
+      const notes = [];
+
+      // Sort plants: companions together, tall plants first (north edge = row 0)
+      // Categorize plants
+      const tallPlants = bedPlants.filter(p => {
+        const n = p.name.toLowerCase();
+        return n.includes('tomato') || n.includes('corn') || n.includes('bean') || 
+               n.includes('pea') || n.includes('sunflower') || n.includes('squash') ||
+               n.includes('zucchini') || n.includes('cucumber') || n.includes('pepper');
+      });
+      const groundPlants = bedPlants.filter(p => {
+        const n = p.name.toLowerCase();
+        return n.includes('lettuce') || n.includes('spinach') || n.includes('kale') ||
+               n.includes('radish') || n.includes('carrot') || n.includes('beet') ||
+               n.includes('onion') || n.includes('garlic');
+      });
+      const herbs = bedPlants.filter(p => {
+        const n = p.name.toLowerCase();
+        return n.includes('basil') || n.includes('parsley') || n.includes('dill') ||
+               n.includes('cilantro') || n.includes('chive') || n.includes('thyme') ||
+               n.includes('rosemary') || n.includes('mint') || n.includes('herb');
+      });
+      const companions = bedPlants.filter(p => {
+        const n = p.name.toLowerCase();
+        return n.includes('marigold') || n.includes('nasturtium') || n.includes('flower') ||
+               n.includes('lavender') || n.includes('zinnia');
+      });
+      const other = bedPlants.filter(p => 
+        !tallPlants.includes(p) && !groundPlants.includes(p) && 
+        !herbs.includes(p) && !companions.includes(p)
+      );
+
+      // Layout order: tall at back (row 0), ground covers mid, herbs + companions at front/edges
+      const ordered = [...tallPlants, ...other, ...groundPlants, ...herbs, ...companions];
+
+      let r = 0, c = 0;
+
+      for (const plant of ordered) {
+        const spacingFt = parseInt(plant.spacing) || 12;
+        const cellsNeeded = Math.max(1, Math.round(spacingFt / 12));
+        const emoji = getEmoji(plant.name);
+        let placed = 0;
+        const maxPerPlant = Math.max(1, Math.floor((cols * rows * 0.6) / ordered.length) * cellsNeeded);
+
+        while (placed < maxPerPlant && r < rows) {
+          const key = bedIdx + '-' + (r * cols + c);
+          if (!cells[key]) {
+            cells[key] = { emoji, name: plant.name };
+            placed++;
+          }
+          c += cellsNeeded;
+          if (c >= cols) { c = 0; r++; }
         }
-        plantIdx++;
       }
+
+      // Build layout notes
+      if (tallPlants.length) notes.push(`🌿 Tall plants (${tallPlants.map(p=>p.name).join(', ')}) placed at back to avoid shading.`);
+      if (companions.length || herbs.length) notes.push(`🌸 Companion plants (${[...companions,...herbs].map(p=>p.name).slice(0,3).join(', ')}) placed at edges for pest protection.`);
+      if (groundPlants.length) notes.push(`🥬 Low-growing crops (${groundPlants.map(p=>p.name).slice(0,3).join(', ')}) fill mid-section for efficient use of space.`);
+      notes.push(`📐 Each square = 1 sq ft. Spacing follows square foot gardening method.`);
+
+      return { cells, notes };
+    }
+
+    // Distribute plants across beds
+    const plantsPerBed = Math.ceil(plants.length / bedsCount);
+    for (let bed = 0; bed < bedsCount; bed++) {
+      const bedPlants = plants.slice(bed * plantsPerBed, (bed + 1) * plantsPerBed);
+      if (bedPlants.length === 0) continue;
+      const { cells, notes } = smartLayoutBed(bed, bedPlants, cols, rows);
+      Object.assign(autoBedData, cells);
+      autoBedNotes[bed] = notes;
     }
 
     const garden = {
@@ -1388,6 +1450,7 @@ Notes: ${wiz.notes || 'none'}`;
       tasks: buildTaskList(plan),
       journal: [],
       bedData: autoBedData,
+      bedNotes: autoBedNotes,
     };
 
     gardens.push(garden);
@@ -1665,12 +1728,15 @@ function renderBedBuilder(garden) {
       </div>
     </div>
 
-    ${Array.from({length: garden.config.beds || 1}, (_, bedIdx) => `
+    ${Array.from({length: garden.config.beds || 1}, (_, bedIdx) => {
+      const bedNotes = garden.bedNotes?.[bedIdx] || [];
+      return `
       <div class="card bed-builder-wrap" style="margin-bottom:1rem">
         <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
-          <span>Bed ${bedIdx+1}</span>
+          <span>Bed ${bedIdx+1} <span style="font-size:12px;font-weight:400;color:var(--text-light);font-family:'Libre Franklin',sans-serif">— AI optimized layout</span></span>
           <button class="btn-secondary" style="padding:6px 14px;font-size:12px" onclick="clearBed(${bedIdx})">Clear bed</button>
         </div>
+        ${bedNotes.length ? `<div style="margin-bottom:1rem">${bedNotes.map(n => `<div class="tip-bar" style="margin-bottom:6px;font-size:12px">${n}</div>`).join('')}</div>` : ''}
         <div class="bed-grid-wrap">
           <div class="bed-grid" id="bed-${bedIdx}" style="grid-template-columns:repeat(${cols},52px)">
             ${Array.from({length: rows * cols}, (_, i) => {
@@ -1683,10 +1749,10 @@ function renderBedBuilder(garden) {
           </div>
         </div>
         <div style="margin-top:8px;font-size:12px;color:var(--text-light)">
-          ${cols} squares wide × ${rows} squares tall · Each square = 1 sq ft
+          ${cols} squares wide × ${rows} squares tall · Each square = 1 sq ft · <strong>North ↑</strong> = back of bed
         </div>
       </div>
-    `).join('')}
+    `}).join('')}
 
     <div class="card">
       <div class="section-title">Companion planting guide</div>
