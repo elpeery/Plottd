@@ -1,0 +1,2032 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plottd — Garden Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Libre+Franklin:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --soil: #3d2b1f;
+  --soil-light: #6b4c3b;
+  --leaf: #4a7c3f;
+  --leaf-light: #7db87a;
+  --leaf-pale: #e8f2e6;
+  --harvest: #c8782a;
+  --harvest-light: #f0c87a;
+  --harvest-pale: #fdf4e3;
+  --sky: #4a7fa5;
+  --sky-pale: #e6f0f7;
+  --cream: #faf8f3;
+  --cream-dark: #f0ece2;
+  --bark: #8b6f5e;
+  --bark-light: #c4a882;
+  --text: #2a2018;
+  --text-mid: #6b5a4e;
+  --text-light: #a08878;
+  --border: #d8cfc4;
+  --border-light: #ece8e0;
+  --white: #ffffff;
+  --danger: #c0392b;
+  --danger-pale: #fdf0ee;
+  --success: #27ae60;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow: 0 2px 12px rgba(42,32,24,0.08);
+  --shadow-lg: 0 8px 32px rgba(42,32,24,0.12);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Libre Franklin', sans-serif;
+  background: var(--cream);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* NAV */
+.nav {
+  background: var(--soil);
+  padding: 0 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.nav-brand {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  color: var(--harvest-light);
+  padding: 1rem 1.5rem 1rem 0;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  margin-right: 0.5rem;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+}
+
+.nav-tab {
+  padding: 1rem 1.25rem;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.6);
+  cursor: pointer;
+  transition: color 0.2s;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+.nav-tab:hover { color: rgba(255,255,255,0.9); }
+.nav-tab.active { color: var(--harvest-light); border-bottom-color: var(--harvest-light); font-weight: 500; }
+
+.nav-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+
+.garden-selector {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 6px;
+  color: white;
+  font-family: 'Libre Franklin', sans-serif;
+  font-size: 13px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+.garden-selector option { background: var(--soil); }
+
+.btn-new-garden {
+  background: var(--harvest);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'Libre Franklin', sans-serif;
+  transition: background 0.2s;
+}
+.btn-new-garden:hover { background: var(--harvest-light); color: var(--text); }
+
+/* PAGES */
+.page { display: none; padding: 2rem; max-width: 1100px; margin: 0 auto; }
+.page.active { display: block; }
+
+/* WELCOME / SETUP */
+.welcome-hero {
+  text-align: center;
+  padding: 4rem 2rem 3rem;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.welcome-hero h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.15;
+  margin-bottom: 1rem;
+}
+
+.welcome-hero h1 em {
+  font-style: italic;
+  color: var(--leaf);
+}
+
+.welcome-hero p {
+  font-size: 16px;
+  color: var(--text-mid);
+  line-height: 1.7;
+  margin-bottom: 2rem;
+}
+
+/* WIZARD */
+.wizard-wrap { max-width: 660px; margin: 0 auto; }
+
+.wizard-step { display: none; }
+.wizard-step.active { display: block; }
+
+.wizard-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 2rem;
+  justify-content: center;
+}
+
+.wp-dot {
+  height: 4px;
+  flex: 1;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.3s;
+  max-width: 60px;
+}
+.wp-dot.done { background: var(--leaf); }
+.wp-dot.active { background: var(--leaf-light); }
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.card-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  margin-bottom: 1.5rem;
+  color: var(--text);
+}
+
+.field { margin-bottom: 1.25rem; }
+
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-mid);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-bottom: 6px;
+}
+
+.field-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 4px;
+}
+
+input[type=text], input[type=number], select, textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-family: 'Libre Franklin', sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--white);
+  transition: border-color 0.2s;
+  outline: none;
+}
+
+input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
+  border-color: var(--leaf);
+  box-shadow: 0 0 0 3px rgba(74,124,63,0.1);
+}
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+
+.pill-group { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.pill {
+  padding: 7px 15px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  cursor: pointer;
+  background: var(--white);
+  color: var(--text-mid);
+  transition: all 0.15s;
+  user-select: none;
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+.pill:hover { border-color: var(--leaf); color: var(--leaf); }
+.pill.selected { background: var(--leaf-pale); border-color: var(--leaf); color: var(--leaf); font-weight: 500; }
+
+.btn-row { display: flex; gap: 10px; margin-top: 1rem; }
+
+.btn-primary {
+  flex: 1;
+  padding: 13px;
+  background: var(--leaf);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-family: 'Libre Franklin', sans-serif;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-primary:hover { background: #3a6330; }
+.btn-primary:disabled { background: var(--border); color: var(--text-light); cursor: not-allowed; }
+
+.btn-secondary {
+  padding: 13px 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: 'Libre Franklin', sans-serif;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--text-mid);
+  transition: all 0.15s;
+}
+.btn-secondary:hover { border-color: var(--text-mid); color: var(--text); }
+
+/* DASHBOARD */
+.dash-header {
+  margin-bottom: 2rem;
+}
+
+.dash-header h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.8rem;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.dash-header p {
+  font-size: 14px;
+  color: var(--text-mid);
+  margin-top: 4px;
+}
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.metric-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-light); margin-bottom: 4px; }
+.metric-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 400; color: var(--text); }
+.metric-sub { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.section-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.1rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+  color: var(--text);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* TASKS */
+.task-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+}
+
+.task-item:last-child { border-bottom: none; }
+
+.task-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border);
+  cursor: pointer;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s;
+  background: white;
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+}
+
+.task-check:checked {
+  background: var(--leaf);
+  border-color: var(--leaf);
+}
+
+.task-check:checked::after {
+  content: '✓';
+  position: absolute;
+  color: white;
+  font-size: 11px;
+  top: 0px;
+  left: 2px;
+}
+
+.task-text { flex: 1; line-height: 1.4; }
+.task-text.done { text-decoration: line-through; color: var(--text-light); }
+.task-month-badge {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--leaf);
+  background: var(--leaf-pale);
+  padding: 2px 8px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.task-urgent { color: var(--danger); background: var(--danger-pale); }
+
+/* PLANTS */
+.plant-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.plant-card {
+  background: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.plant-card:hover {
+  border-color: var(--leaf);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.plant-emoji { font-size: 24px; margin-bottom: 6px; }
+.plant-name { font-weight: 500; font-size: 14px; margin-bottom: 2px; }
+.plant-variety { font-size: 11px; color: var(--text-light); margin-bottom: 6px; }
+.plant-tag { font-size: 11px; padding: 2px 8px; border-radius: 100px; display: inline-block; }
+.tag-direct { background: var(--sky-pale); color: var(--sky); }
+.tag-indoor { background: var(--harvest-pale); color: var(--harvest); }
+.tag-transplant { background: var(--leaf-pale); color: var(--leaf); }
+
+/* BED BUILDER */
+.bed-builder-wrap { }
+
+.bed-controls {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.bed-grid-wrap {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+}
+
+.bed-grid {
+  display: grid;
+  gap: 3px;
+  margin: 0 auto;
+}
+
+.bed-cell {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  border: 1.5px dashed var(--border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  transition: all 0.15s;
+  background: var(--cream);
+  position: relative;
+}
+
+.bed-cell:hover { border-color: var(--leaf); background: var(--leaf-pale); }
+.bed-cell.filled { border-style: solid; border-color: var(--border); background: var(--cream-dark); }
+.bed-cell.selected-cell { border-color: var(--leaf); box-shadow: 0 0 0 2px var(--leaf-pale); }
+
+.bed-cell .cell-label {
+  position: absolute;
+  bottom: -1px;
+  right: 2px;
+  font-size: 8px;
+  color: var(--text-light);
+  font-family: 'Libre Franklin', sans-serif;
+}
+
+.plant-palette {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 12px;
+  background: var(--cream-dark);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+}
+
+.palette-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--white);
+  border: 1.5px solid var(--border);
+  border-radius: 100px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.palette-item:hover { border-color: var(--leaf); }
+.palette-item.active-tool { border-color: var(--leaf); background: var(--leaf-pale); color: var(--leaf); font-weight: 500; }
+.palette-item.eraser { border-color: var(--bark-light); color: var(--bark); }
+.palette-item.eraser.active-tool { background: var(--harvest-pale); border-color: var(--harvest); color: var(--harvest); }
+
+/* SHOPPING */
+.shopping-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-light);
+  gap: 12px;
+}
+
+.shopping-item:last-child { border-bottom: none; }
+.shopping-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+.shopping-detail { font-size: 12px; color: var(--text-light); }
+.shopping-right { text-align: right; flex-shrink: 0; }
+.shopping-price { font-size: 14px; font-weight: 500; color: var(--text); }
+.shopping-link {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--sky);
+  text-decoration: none;
+  margin-top: 2px;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.15s;
+}
+.shopping-link:hover { border-bottom-color: var(--sky); }
+
+.shop-category {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-light);
+  margin: 1.25rem 0 0.5rem;
+  font-weight: 500;
+}
+
+.shop-total {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0 0;
+  margin-top: 4px;
+  border-top: 1.5px solid var(--border);
+  font-weight: 500;
+  font-size: 15px;
+}
+
+/* JOURNAL */
+.journal-entry {
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.journal-entry:last-child { border-bottom: none; }
+.journal-date { font-size: 12px; color: var(--text-light); margin-bottom: 4px; }
+.journal-text { font-size: 14px; line-height: 1.6; }
+.journal-tags { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+.journal-tag { font-size: 11px; padding: 2px 8px; border-radius: 100px; background: var(--cream-dark); color: var(--text-mid); }
+
+.journal-form textarea { margin-bottom: 10px; }
+.journal-form .tag-input { display: flex; gap: 8px; }
+
+/* PEST */
+.pest-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  background: var(--white);
+}
+
+.pest-name { font-weight: 500; font-size: 14px; margin-bottom: 4px; }
+.pest-affects { font-size: 12px; color: var(--text-light); margin-bottom: 8px; }
+.pest-row { display: flex; gap: 8px; margin-top: 6px; }
+.pest-badge {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-weight: 500;
+}
+.pest-prevent { background: var(--leaf-pale); color: var(--leaf); }
+.pest-treat { background: var(--harvest-pale); color: var(--harvest); }
+.pest-detail { font-size: 12px; color: var(--text-mid); line-height: 1.5; }
+
+/* ALERTS / TIPS */
+.tip-bar {
+  background: var(--leaf-pale);
+  border-left: 3px solid var(--leaf);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.alert-bar {
+  background: var(--harvest-pale);
+  border-left: 3px solid var(--harvest);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-mid);
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+/* LOADING */
+.loading-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(250,248,243,0.95);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.loading-overlay.show { display: flex; }
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 2px solid var(--border);
+  border-top-color: var(--leaf);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.2rem;
+  color: var(--text);
+}
+
+.loading-sub { font-size: 13px; color: var(--text-light); }
+
+/* MODAL */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 150;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-overlay.show { display: flex; }
+
+.modal {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  max-width: 520px;
+  width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+}
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 400;
+  margin-bottom: 1rem;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: var(--text-light);
+}
+
+/* SUCCESSION CALENDAR */
+.succession-wrap { overflow-x: auto; }
+
+.succession-grid {
+  display: grid;
+  grid-template-columns: 140px repeat(12, 1fr);
+  gap: 2px;
+  min-width: 700px;
+}
+
+.sg-header {
+  font-size: 10px;
+  text-align: center;
+  color: var(--text-light);
+  padding: 4px 2px;
+  font-weight: 500;
+}
+
+.sg-plant-name {
+  font-size: 12px;
+  color: var(--text);
+  padding: 6px 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.sg-cell {
+  height: 28px;
+  border-radius: 3px;
+  background: var(--border-light);
+}
+
+.sg-cell.indoor { background: #b3d4f0; }
+.sg-cell.direct { background: #7db87a; }
+.sg-cell.growing { background: #4a7c3f; }
+.sg-cell.harvest { background: #c8782a; }
+.sg-cell.succession { background: #f0c87a; }
+
+.sg-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-mid);
+}
+
+.sg-legend-item { display: flex; align-items: center; gap: 6px; }
+.sg-legend-dot { width: 12px; height: 12px; border-radius: 2px; }
+
+/* NO GARDEN STATE */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.empty-icon { font-size: 3rem; margin-bottom: 1rem; }
+
+.empty-state h3 {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  margin-bottom: 0.75rem;
+}
+
+.empty-state p {
+  color: var(--text-mid);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+  .metrics-row { grid-template-columns: 1fr 1fr; }
+  .dash-grid { grid-template-columns: 1fr; }
+  .two-col, .three-col { grid-template-columns: 1fr; }
+  .nav-tab { padding: 1rem 0.75rem; font-size: 12px; }
+  .page { padding: 1rem; }
+}
+
+.tag-sow { background: var(--sky-pale); color: var(--sky); }
+.tag-plant { background: var(--leaf-pale); color: var(--leaf); }
+.tag-harvest { background: var(--harvest-pale); color: var(--harvest); }
+.tag-pest { background: var(--danger-pale); color: var(--danger); }
+.tag-general { background: var(--cream-dark); color: var(--text-mid); }
+
+.companion-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--leaf-pale);
+  color: var(--leaf);
+  border-radius: 100px;
+  margin: 2px;
+}
+
+.bad-companion-chip {
+  display: inline-block;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--danger-pale);
+  color: var(--danger);
+  border-radius: 100px;
+  margin: 2px;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 14px;
+}
+
+.detail-row:last-child { border-bottom: none; }
+.detail-key { color: var(--text-light); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav" id="mainNav" style="display:none">
+  <div class="nav-brand" onclick="showPage('dashboard')">🌱 Plottd</div>
+  <div class="nav-tab active" onclick="showPage('dashboard')" id="tab-dashboard">Dashboard</div>
+  <div class="nav-tab" onclick="showPage('plants')" id="tab-plants">Plants</div>
+  <div class="nav-tab" onclick="showPage('bedbuilder')" id="tab-bedbuilder">Bed Layout</div>
+  <div class="nav-tab" onclick="showPage('calendar')" id="tab-calendar">Calendar</div>
+  <div class="nav-tab" onclick="showPage('shopping')" id="tab-shopping">Shopping</div>
+  <div class="nav-tab" onclick="showPage('journal')" id="tab-journal">Journal</div>
+  <div class="nav-tab" onclick="showPage('pests')" id="tab-pests">Pests & Disease</div>
+  <div class="nav-actions">
+    <select class="garden-selector" id="gardenSelector" onchange="switchGarden(this.value)"></select>
+    <button class="btn-new-garden" onclick="startNewGarden()">+ New Garden</button>
+  </div>
+</nav>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div class="loading-title" id="loadingTitle">Growing your plan...</div>
+  <div class="loading-sub" id="loadingSub">Analyzing your zone and conditions</div>
+</div>
+
+<!-- PLANT DETAIL MODAL -->
+<div class="modal-overlay" id="plantModal">
+  <div class="modal" style="position:relative">
+    <button class="modal-close" onclick="closePlantModal()">×</button>
+    <div id="plantModalContent"></div>
+  </div>
+</div>
+
+<!-- PAGES -->
+
+<!-- WELCOME PAGE -->
+<div class="page active" id="page-welcome">
+  <div class="welcome-hero">
+    <div style="font-size:3rem;margin-bottom:1rem;">🌱</div>
+    <h1>Grow something <em>beautiful.</em></h1>
+    <p>Plottd turns your garden goals into a complete, personalized plan — with a visual bed layout, week-by-week task calendar, and everything you need to order.</p>
+    <button class="btn-primary" onclick="showWizard()" style="max-width:240px;margin:0 auto">Create my first garden →</button>
+  </div>
+</div>
+
+<!-- SETUP WIZARD PAGE -->
+<div class="page" id="page-wizard">
+  <div class="wizard-wrap">
+    <div class="wizard-progress" id="wizardProgress"></div>
+    <div id="wizardSteps"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="page" id="page-dashboard">
+  <div id="dashboardContent"></div>
+</div>
+
+<!-- PLANTS -->
+<div class="page" id="page-plants">
+  <div id="plantsContent"></div>
+</div>
+
+<!-- BED BUILDER -->
+<div class="page" id="page-bedbuilder">
+  <div id="bedbuilderContent"></div>
+</div>
+
+<!-- CALENDAR -->
+<div class="page" id="page-calendar">
+  <div id="calendarContent"></div>
+</div>
+
+<!-- SHOPPING -->
+<div class="page" id="page-shopping">
+  <div id="shoppingContent"></div>
+</div>
+
+<!-- JOURNAL -->
+<div class="page" id="page-journal">
+  <div id="journalContent"></div>
+</div>
+
+<!-- PESTS -->
+<div class="page" id="page-pests">
+  <div id="pestsContent"></div>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────
+let gardens = JSON.parse(localStorage.getItem('plottd_gardens') || '[]');
+let activeGardenId = localStorage.getItem('plottd_active') || null;
+let currentPage = 'welcome';
+
+// Wizard temp state
+let wiz = {};
+
+// Bed builder state
+let activeTool = null; // plant emoji or 'eraser'
+let bedData = {}; // cellIndex -> {emoji, name}
+
+// ─── PLANT EMOJI MAP ─────────────────────────────────────────────────
+const plantEmojis = {
+  'Tomato': '🍅', 'Pepper': '🫑', 'Cucumber': '🥒', 'Zucchini': '🥒',
+  'Squash': '🎃', 'Bean': '🫘', 'Pea': '🟢', 'Lettuce': '🥬',
+  'Kale': '🥦', 'Spinach': '🌿', 'Carrot': '🥕', 'Radish': '🔴',
+  'Beet': '🟣', 'Onion': '🧅', 'Garlic': '🧄', 'Herb': '🌿',
+  'Basil': '🌿', 'Parsley': '🌿', 'Cilantro': '🌿', 'Dill': '🌿',
+  'Thyme': '🌿', 'Rosemary': '🌿', 'Mint': '🌿', 'Chive': '🌿',
+  'Strawberry': '🍓', 'Sunflower': '🌻', 'Marigold': '🌼',
+  'Lavender': '💜', 'Zinnia': '🌸', 'Flower': '🌸',
+  'default': '🌱'
+};
+
+function getEmoji(name) {
+  for (const [k,v] of Object.entries(plantEmojis)) {
+    if (name.toLowerCase().includes(k.toLowerCase())) return v;
+  }
+  return plantEmojis.default;
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────────
+function saveGardens() {
+  localStorage.setItem('plottd_gardens', JSON.stringify(gardens));
+  localStorage.setItem('plottd_active', activeGardenId || '');
+}
+
+function getActiveGarden() {
+  return gardens.find(g => g.id === activeGardenId) || null;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────
+function init() {
+  if (gardens.length === 0) {
+    showPage('welcome');
+  } else {
+    if (!activeGardenId || !gardens.find(g => g.id === activeGardenId)) {
+      activeGardenId = gardens[0].id;
+    }
+    document.getElementById('mainNav').style.display = 'flex';
+    updateGardenSelector();
+    showPage('dashboard');
+  }
+}
+
+function updateGardenSelector() {
+  const sel = document.getElementById('gardenSelector');
+  sel.innerHTML = gardens.map(g =>
+    `<option value="${g.id}" ${g.id === activeGardenId ? 'selected' : ''}>${g.name}</option>`
+  ).join('');
+}
+
+function switchGarden(id) {
+  activeGardenId = id;
+  saveGardens();
+  bedData = getActiveGarden()?.bedData || {};
+  renderCurrentPage();
+}
+
+function startNewGarden() {
+  showPage('wizard');
+  initWizard();
+}
+
+// ─── NAVIGATION ───────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+
+  const page = document.getElementById('page-' + name);
+  if (page) page.classList.add('active');
+
+  const tab = document.getElementById('tab-' + name);
+  if (tab) tab.classList.add('active');
+
+  currentPage = name;
+
+  if (name !== 'welcome' && name !== 'wizard') renderPage(name);
+}
+
+function renderCurrentPage() { renderPage(currentPage); }
+
+function renderPage(name) {
+  const garden = getActiveGarden();
+  if (!garden && name !== 'welcome' && name !== 'wizard') {
+    document.getElementById(name + 'Content') && (document.getElementById(name + 'Content').innerHTML = renderEmptyState());
+    return;
+  }
+  switch(name) {
+    case 'dashboard': renderDashboard(garden); break;
+    case 'plants': renderPlants(garden); break;
+    case 'bedbuilder': renderBedBuilder(garden); break;
+    case 'calendar': renderCalendar(garden); break;
+    case 'shopping': renderShopping(garden); break;
+    case 'journal': renderJournal(garden); break;
+    case 'pests': renderPests(garden); break;
+  }
+}
+
+function renderEmptyState() {
+  return `<div class="empty-state">
+    <div class="empty-icon">🌱</div>
+    <h3>No garden yet</h3>
+    <p>Create your first garden to get started with a personalized plan.</p>
+    <button class="btn-primary" onclick="startNewGarden()" style="max-width:200px;margin:0 auto">Create garden</button>
+  </div>`;
+}
+
+// ─── WIZARD ───────────────────────────────────────────────────────────
+const wizardStepDefs = [
+  { id: 'location', title: 'Where is your garden?' },
+  { id: 'space', title: 'Tell us about your space' },
+  { id: 'goals', title: 'What do you want to grow?' },
+  { id: 'you', title: 'About you' },
+  { id: 'constraints', title: 'Preferences & constraints' },
+  { id: 'review', title: 'Ready to generate your plan' },
+];
+
+let wizardStep = 0;
+
+function initWizard() {
+  wiz = {
+    name: '',
+    zip: '', zone: '', state: '',
+    space: '', gardenType: '', sunExposure: '',
+    beds: 1, bedWidth: 4, bedLength: 8,
+    goals: [], experience: '', time: '',
+    budget: '', soil: '',
+    preferences: [], notes: ''
+  };
+  wizardStep = 0;
+  renderWizard();
+}
+
+function renderWizard() {
+  // Progress
+  const prog = document.getElementById('wizardProgress');
+  prog.innerHTML = wizardStepDefs.map((_, i) =>
+    `<div class="wp-dot ${i < wizardStep ? 'done' : i === wizardStep ? 'active' : ''}"></div>`
+  ).join('');
+
+  const container = document.getElementById('wizardSteps');
+  container.innerHTML = '';
+
+  const step = wizardStepDefs[wizardStep];
+  let html = `<div class="card"><div class="card-title">${step.title}</div>`;
+
+  switch(step.id) {
+    case 'location':
+      html += `
+        <div class="field">
+          <label>Garden name</label>
+          <input type="text" id="wiz-name" placeholder="My vegetable garden, Front yard beds..." value="${wiz.name}" />
+        </div>
+        <div class="two-col">
+          <div class="field">
+            <label>ZIP code</label>
+            <input type="text" id="wiz-zip" placeholder="e.g. 10001" maxlength="5" value="${wiz.zip}" />
+            <div class="field-hint">Used for frost dates & growing zone</div>
+          </div>
+          <div class="field">
+            <label>State</label>
+            <input type="text" id="wiz-state" placeholder="PA" maxlength="2" value="${wiz.state}" style="text-transform:uppercase" />
+          </div>
+        </div>`;
+      break;
+    case 'space':
+      html += `
+        <div class="two-col">
+          <div class="field">
+            <label>Total growing area</label>
+            <select id="wiz-space">
+              <option value="">Select size...</option>
+              ${[['tiny','Tiny — under 25 sq ft'],['small','Small — 25–100 sq ft'],['medium','Medium — 100–300 sq ft'],['large','Large — 300–600 sq ft'],['xlarge','Very large — 600+ sq ft']].map(([v,l]) => `<option value="${v}" ${wiz.space===v?'selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field">
+            <label>Garden type</label>
+            <select id="wiz-gardenType">
+              <option value="">Select...</option>
+              ${[['raised','Raised beds'],['inground','In-ground'],['containers','Containers / pots'],['mixed','Mix of types']].map(([v,l]) => `<option value="${v}" ${wiz.gardenType===v?'selected':''}>${l}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Sun exposure</label>
+          <div class="pill-group" id="wiz-sun">
+            ${[['full','☀️ Full sun (6+ hrs)'],['partial','⛅ Partial (3–6 hrs)'],['shade','🌥 Mostly shade'],['mixed','🌤 Varies by spot']].map(([v,l]) => `<div class="pill ${wiz.sunExposure===v?'selected':''}" data-val="${v}">${l}</div>`).join('')}
+          </div>
+        </div>
+        <div class="three-col">
+          <div class="field">
+            <label>Number of beds</label>
+            <input type="number" id="wiz-beds" min="1" max="20" value="${wiz.beds}" />
+          </div>
+          <div class="field">
+            <label>Bed width (ft)</label>
+            <input type="number" id="wiz-bedWidth" min="2" max="12" value="${wiz.bedWidth}" />
+          </div>
+          <div class="field">
+            <label>Bed length (ft)</label>
+            <input type="number" id="wiz-bedLength" min="2" max="30" value="${wiz.bedLength}" />
+          </div>
+        </div>`;
+      break;
+    case 'goals':
+      html += `
+        <div class="field">
+          <label>I want to grow (select all that apply)</label>
+          <div class="pill-group" id="wiz-goals">
+            ${[['vegetables','🥦 Vegetables'],['herbs','🌿 Herbs'],['fruit','🍓 Fruit'],['flowers','🌸 Flowers'],['salad','🥗 Salad greens'],['pollinator','🐝 Pollinator garden']].map(([v,l]) => `<div class="pill ${wiz.goals.includes(v)?'selected':''}" data-val="${v}">${l}</div>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Specific plants you definitely want (optional)</label>
+          <input type="text" id="wiz-wantedPlants" placeholder="e.g. tomatoes, basil, zucchini..." value="${wiz.wantedPlants||''}" />
+        </div>
+        <div class="field">
+          <label>Anything you want to avoid?</label>
+          <input type="text" id="wiz-avoidPlants" placeholder="e.g. squash, anything that sprawls..." value="${wiz.avoidPlants||''}" />
+        </div>`;
+      break;
+    case 'you':
+      html += `
+        <div class="field">
+          <label>Your experience level</label>
+          <div class="pill-group" id="wiz-experience">
+            ${[['beginner','🌱 Complete beginner'],['some','🌿 Some experience'],['intermediate','🌳 Comfortable gardener'],['advanced','🏆 Advanced / expert']].map(([v,l]) => `<div class="pill ${wiz.experience===v?'selected':''}" data-val="${v}">${l}</div>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Weekly time available</label>
+          <div class="pill-group" id="wiz-time">
+            ${[['minimal','Under 1 hr'],['moderate','1–3 hrs'],['enthusiast','3–6 hrs'],['dedicated','6+ hrs']].map(([v,l]) => `<div class="pill ${wiz.time===v?'selected':''}" data-val="${v}">${l}</div>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Starting budget</label>
+          <div class="pill-group" id="wiz-budget">
+            ${[['under50','Under $50'],['50to150','$50–$150'],['150to300','$150–$300'],['300to500','$300–$500'],['over500','$500+']].map(([v,l]) => `<div class="pill ${wiz.budget===v?'selected':''}" data-val="${v}">${l}</div>`).join('')}
+          </div>
+        </div>`;
+      break;
+    case 'constraints':
+      html += `
+        <div class="field">
+          <label>Soil situation</label>
+          <select id="wiz-soil">
+            <option value="">Select...</option>
+            ${[['unknown',"Don't know yet"],['clay','Heavy clay'],['sandy','Sandy / drains fast'],['rocky','Rocky'],['decent','Decent, needs work'],['good','Good / already amended'],['newbed','New raised bed (no soil)']].map(([v,l]) => `<option value="${v}" ${wiz.soil===v?'selected':''}>${l}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label>Special considerations</label>
+          <div class="pill-group" id="wiz-preferences">
+            ${[['organic','🌿 Organic only'],['lowwater','💧 Low water'],['kids','👶 Kid-friendly'],['deer','🦌 Deer pressure'],['pets','🐾 Pets (avoid toxic)'],['edible','🥕 Edible plants only'],['native','🌾 Prefer natives']].map(([v,l]) => `<div class="pill ${wiz.preferences.includes(v)?'selected':''}" data-val="${v}">${l}</div>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label>Anything else we should know?</label>
+          <textarea id="wiz-notes" rows="3" placeholder="Specific challenges, past failures, goals, or anything you'd like the plan to account for...">${wiz.notes}</textarea>
+        </div>`;
+      break;
+    case 'review':
+      html += `
+        <div class="alert-bar">Your answers have been saved. Click below to generate a complete AI-powered garden plan — this takes about 30 seconds.</div>
+        <div style="font-size:14px;line-height:2;color:var(--text-mid);">
+          <div><strong>Garden:</strong> ${wiz.name || 'My Garden'} · ZIP ${wiz.zip}</div>
+          <div><strong>Space:</strong> ${wiz.space} · ${wiz.gardenType} · ${wiz.sunExposure} sun</div>
+          <div><strong>Goals:</strong> ${wiz.goals.join(', ') || 'general'}</div>
+          <div><strong>Experience:</strong> ${wiz.experience} · ${wiz.time}/week · Budget: ${wiz.budget}</div>
+          ${wiz.notes ? `<div><strong>Notes:</strong> ${wiz.notes}</div>` : ''}
+        </div>`;
+      break;
+  }
+
+  html += `</div>`;
+
+  // Buttons
+  html += `<div class="btn-row">`;
+  if (wizardStep > 0) html += `<button class="btn-secondary" onclick="wizBack()">← Back</button>`;
+  if (wizardStep < wizardStepDefs.length - 1) {
+    html += `<button class="btn-primary" onclick="wizNext()">Continue →</button>`;
+  } else {
+    html += `<button class="btn-primary" onclick="generatePlan()">✨ Generate my garden plan</button>`;
+  }
+  html += `</div>`;
+
+  container.innerHTML = html;
+
+  // Attach pill listeners
+  ['wiz-sun','wiz-goals','wiz-experience','wiz-time','wiz-budget','wiz-preferences'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isMulti = ['wiz-goals','wiz-preferences'].includes(id);
+    const stateKey = id.replace('wiz-','').replace('-','');
+    const keyMap = {'sun':'sunExposure','goals':'goals','experience':'experience','time':'time','budget':'budget','preferences':'preferences'};
+    const key = keyMap[stateKey] || stateKey;
+    el.querySelectorAll('.pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const val = pill.dataset.val;
+        if (isMulti) {
+          if (wiz[key].includes(val)) {
+            wiz[key] = wiz[key].filter(v => v !== val);
+            pill.classList.remove('selected');
+          } else {
+            wiz[key].push(val);
+            pill.classList.add('selected');
+          }
+        } else {
+          el.querySelectorAll('.pill').forEach(p => p.classList.remove('selected'));
+          pill.classList.add('selected');
+          wiz[key] = val;
+        }
+      });
+    });
+  });
+}
+
+function wizSaveStep() {
+  const step = wizardStepDefs[wizardStep].id;
+  if (step === 'location') {
+    wiz.name = document.getElementById('wiz-name')?.value || '';
+    wiz.zip = document.getElementById('wiz-zip')?.value || '';
+    wiz.state = document.getElementById('wiz-state')?.value || '';
+  } else if (step === 'space') {
+    wiz.space = document.getElementById('wiz-space')?.value || '';
+    wiz.gardenType = document.getElementById('wiz-gardenType')?.value || '';
+    wiz.beds = parseInt(document.getElementById('wiz-beds')?.value) || 1;
+    wiz.bedWidth = parseInt(document.getElementById('wiz-bedWidth')?.value) || 4;
+    wiz.bedLength = parseInt(document.getElementById('wiz-bedLength')?.value) || 8;
+  } else if (step === 'goals') {
+    wiz.wantedPlants = document.getElementById('wiz-wantedPlants')?.value || '';
+    wiz.avoidPlants = document.getElementById('wiz-avoidPlants')?.value || '';
+  } else if (step === 'constraints') {
+    wiz.soil = document.getElementById('wiz-soil')?.value || '';
+    wiz.notes = document.getElementById('wiz-notes')?.value || '';
+  }
+}
+
+function wizNext() {
+  wizSaveStep();
+  wizardStep++;
+  renderWizard();
+}
+
+function wizBack() {
+  wizSaveStep();
+  wizardStep--;
+  renderWizard();
+}
+
+// ─── AI PLAN GENERATION ───────────────────────────────────────────────
+const loadingMessages = [
+  ['Analyzing your growing zone...','Cross-referencing frost dates for ZIP ' + (wiz.zip||'')],
+  ['Selecting plants for your conditions...','Matching varieties to sun, space, and goals'],
+  ['Building your planting calendar...','Scheduling succession plantings and harvests'],
+  ['Calculating costs and supplies...','Generating your personalized shopping list'],
+  ['Writing pest & disease watch...','Identifying risks for your specific plant list'],
+  ['Finalizing your plan...','Almost ready — putting it all together'],
+];
+
+let loadingInterval;
+
+function showLoading() {
+  const overlay = document.getElementById('loadingOverlay');
+  overlay.classList.add('show');
+  let i = 0;
+  document.getElementById('loadingTitle').textContent = loadingMessages[0][0];
+  document.getElementById('loadingSub').textContent = loadingMessages[0][1];
+  loadingInterval = setInterval(() => {
+    i = (i+1) % loadingMessages.length;
+    document.getElementById('loadingTitle').textContent = loadingMessages[i][0];
+    document.getElementById('loadingSub').textContent = loadingMessages[i][1];
+  }, 5000);
+}
+
+function hideLoading() {
+  clearInterval(loadingInterval);
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+async function generatePlan() {
+  showLoading();
+
+  const systemPrompt = `You are an expert master gardener. Generate a complete, highly detailed garden plan. 
+Return ONLY valid JSON, no markdown, no fences, no extra text.
+Required JSON structure:
+{
+  "summary": "2-3 sentence personalized overview",
+  "zone": "USDA zone e.g. 6b",
+  "climate": "brief climate description",
+  "frostDates": { "lastSpring": "e.g. April 15", "firstFall": "e.g. October 15" },
+  "metrics": { "estimatedCost": "$X–$Y", "weeklyHours": "X–Y", "harvestWindow": "Month–Month", "totalPlants": 12 },
+  "soilPlan": {
+    "amendments": ["specific amendment with amount"],
+    "compostNeeded": "X cubic feet",
+    "ph": "ideal pH range",
+    "notes": "specific advice for their soil type"
+  },
+  "plants": [
+    {
+      "name": "Common name",
+      "variety": "Specific recommended variety",
+      "qty": "exact number or weight of seed",
+      "startMethod": "Direct sow|Start indoors|Buy transplant",
+      "startWeek": "e.g. 8 weeks before last frost",
+      "transplantWeek": "e.g. After last frost",
+      "daysToMaturity": 75,
+      "spacing": "12 inches",
+      "depthToPlant": "1/4 inch",
+      "waterNeeds": "Regular|Moderate|Low",
+      "sunNeeds": "Full sun|Partial shade|Full shade",
+      "companions": ["plant that grows well with this"],
+      "avoid": ["plant to keep away"],
+      "pests": ["common pest"],
+      "harvestMonths": [7, 8, 9],
+      "successionInterval": "2 weeks",
+      "notes": "specific cultivation tip",
+      "affiliateSearch": "search term for buying seeds e.g. 'Cherokee Purple tomato seeds'"
+    }
+  ],
+  "successionPlan": "detailed 3-4 sentence succession strategy",
+  "calendar": [
+    { "month": "January", "monthNum": 1, "tasks": [
+      { "text": "task description", "type": "sow|plant|harvest|pest|general", "plants": ["plant name"] }
+    ]}
+  ],
+  "pestWatch": [
+    {
+      "name": "Pest or disease name",
+      "type": "insect|disease|wildlife",
+      "affects": ["plant names"],
+      "symptoms": "what to look for",
+      "prevention": "prevention tip",
+      "organicTreatment": "organic treatment",
+      "conventionalTreatment": "conventional option",
+      "severity": "low|medium|high"
+    }
+  ],
+  "shoppingList": {
+    "seeds": [{ "item": "name", "qty": "packet count", "estimatedCost": "$X.XX", "brand": "e.g. Baker Creek", "searchTerm": "search term" }],
+    "amendments": [{ "item": "name", "qty": "amount", "estimatedCost": "$X.XX", "whereToBuy": "garden center|hardware store|online" }],
+    "tools": [{ "item": "name", "qty": "1", "estimatedCost": "$X.XX", "whereToBuy": "hardware store" }],
+    "infrastructure": [{ "item": "name", "qty": "amount", "estimatedCost": "$X.XX", "whereToBuy": "hardware store|online" }],
+    "totalEstimate": "$XXX–$XXX"
+  },
+  "proTips": ["specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
+}
+Be very specific to their ZIP/region, space, goals, budget, soil, and constraints. Generate 5-10 plants.`;
+
+  const userPrompt = `Create a complete garden plan:
+ZIP: ${wiz.zip}, State: ${wiz.state}
+Garden name: ${wiz.name || 'My Garden'}
+Space: ${wiz.space}, Type: ${wiz.gardenType}, Sun: ${wiz.sunExposure}
+Beds: ${wiz.beds} beds, each ${wiz.bedWidth}ft × ${wiz.bedLength}ft
+Goals: ${wiz.goals.join(', ')}
+Wanted plants: ${wiz.wantedPlants || 'none specified'}
+Avoid: ${wiz.avoidPlants || 'none'}
+Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
+Soil: ${wiz.soil}
+Preferences: ${wiz.preferences.join(', ') || 'none'}
+Notes: ${wiz.notes || 'none'}`;
+
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userPrompt }]
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+
+    const text = data.content[0].text.replace(/```json|```/g, '').trim();
+    const plan = JSON.parse(text);
+
+    // Create garden object
+    const garden = {
+      id: Date.now().toString(),
+      name: wiz.name || 'My Garden',
+      createdAt: new Date().toISOString(),
+      config: { ...wiz },
+      plan: plan,
+      tasks: buildTaskList(plan),
+      journal: [],
+      bedData: {},
+    };
+
+    gardens.push(garden);
+    activeGardenId = garden.id;
+    saveGardens();
+
+    hideLoading();
+    document.getElementById('mainNav').style.display = 'flex';
+    updateGardenSelector();
+    showPage('dashboard');
+
+  } catch(err) {
+    hideLoading();
+    alert('Error generating plan: ' + err.message + '. Please try again.');
+  }
+}
+
+function buildTaskList(plan) {
+  const tasks = [];
+  (plan.calendar || []).forEach(month => {
+    (month.tasks || []).forEach(task => {
+      tasks.push({
+        id: Date.now().toString() + Math.random(),
+        month: month.month,
+        monthNum: month.monthNum,
+        text: task.text,
+        type: task.type || 'general',
+        plants: task.plants || [],
+        done: false
+      });
+    });
+  });
+  return tasks;
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────
+function renderDashboard(garden) {
+  const plan = garden.plan;
+  const now = new Date();
+  const currentMonth = now.getMonth() + 1;
+  const monthName = now.toLocaleString('default', { month: 'long' });
+
+  // Current month tasks
+  const currentTasks = garden.tasks.filter(t => t.monthNum === currentMonth);
+  const upcomingTasks = garden.tasks.filter(t => t.monthNum === currentMonth + 1);
+  const doneTasks = garden.tasks.filter(t => t.done).length;
+  const totalTasks = garden.tasks.length;
+
+  // Tips and alerts
+  const urgentTasks = currentTasks.filter(t => !t.done).slice(0, 3);
+
+  let html = `
+    <div class="dash-header">
+      <h2>${garden.name}</h2>
+      <p>Zone ${plan.zone} · ${plan.climate || ''} · Last frost ~${plan.frostDates?.lastSpring || 'TBD'} · First fall frost ~${plan.frostDates?.firstFall || 'TBD'}</p>
+    </div>
+
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">Est. startup cost</div>
+        <div class="metric-value">${plan.metrics?.estimatedCost || '—'}</div>
+        <div class="metric-sub">total investment</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Weekly time</div>
+        <div class="metric-value">${plan.metrics?.weeklyHours || '—'}</div>
+        <div class="metric-sub">hrs/week in season</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Harvest window</div>
+        <div class="metric-value" style="font-size:1.1rem;padding-top:6px">${plan.metrics?.harvestWindow || '—'}</div>
+        <div class="metric-sub">${plan.plants?.length || 0} plants planned</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Tasks complete</div>
+        <div class="metric-value">${doneTasks}<span style="font-size:1rem;color:var(--text-light)">/${totalTasks}</span></div>
+        <div class="metric-sub">this season</div>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <div class="card">
+        <div class="section-title">What to do in ${monthName}</div>
+        ${currentTasks.length === 0
+          ? `<p style="color:var(--text-light);font-size:14px">No tasks this month. Enjoy the rest!</p>`
+          : currentTasks.slice(0,8).map(t => `
+            <div class="task-item">
+              <input type="checkbox" class="task-check" ${t.done?'checked':''} onchange="toggleTask('${t.id}', this.checked)">
+              <div>
+                <div class="task-text ${t.done?'done':''}">${t.text}</div>
+                ${t.plants.length ? `<div style="margin-top:3px">${t.plants.map(p=>`<span class="companion-chip">${p}</span>`).join('')}</div>` : ''}
+              </div>
+              <span class="task-month-badge ${t.type==='harvest'?'tag-harvest':t.type==='sow'?'tag-sow':''}">${t.type}</span>
+            </div>
+          `).join('')
+        }
+        ${currentTasks.length > 8 ? `<p style="font-size:13px;color:var(--text-light);padding-top:8px;">+${currentTasks.length-8} more — <a href="#" onclick="showPage('calendar');return false">see full calendar</a></p>` : ''}
+      </div>
+
+      <div class="card">
+        <div class="section-title">Your plants</div>
+        <div class="plant-grid">
+          ${(plan.plants||[]).slice(0,6).map(p => `
+            <div class="plant-card" onclick="showPlantDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+              <div class="plant-emoji">${getEmoji(p.name)}</div>
+              <div class="plant-name">${p.name}</div>
+              <div class="plant-variety">${p.variety}</div>
+              <span class="plant-tag ${p.startMethod==='Direct sow'?'tag-direct':p.startMethod==='Start indoors'?'tag-indoor':'tag-transplant'}">${p.startMethod}</span>
+            </div>
+          `).join('')}
+        </div>
+        ${(plan.plants||[]).length > 6 ? `<p style="font-size:13px;color:var(--text-light);padding-top:12px;"><a href="#" onclick="showPage('plants');return false">View all ${plan.plants.length} plants →</a></p>` : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Plan overview</div>
+      <div style="font-size:14px;line-height:1.7;color:var(--text-mid)">${plan.summary}</div>
+      ${(plan.proTips||[]).slice(0,2).map(t => `<div class="tip-bar" style="margin-top:10px">${t}</div>`).join('')}
+    </div>
+
+    ${upcomingTasks.length > 0 ? `
+    <div class="card" style="margin-top:1.25rem">
+      <div class="section-title">Coming up next month</div>
+      ${upcomingTasks.slice(0,4).map(t => `
+        <div class="task-item">
+          <span class="task-month-badge">${t.month.slice(0,3)}</span>
+          <div class="task-text">${t.text}</div>
+        </div>
+      `).join('')}
+    </div>` : ''}
+  `;
+
+  document.getElementById('dashboardContent').innerHTML = html;
+}
+
+function toggleTask(id, checked) {
+  const garden = getActiveGarden();
+  const task = garden.tasks.find(t => t.id === id);
+  if (task) {
+    task.done = checked;
+    saveGardens();
+  }
+}
+
+// ─── PLANTS PAGE ──────────────────────────────────────────────────────
+function renderPlants(garden) {
+  const plan = garden.plan;
+  let html = `
+    <div class="dash-header">
+      <h2>Plant List</h2>
+      <p>${plan.plants?.length || 0} plants planned for ${garden.name}</p>
+    </div>
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="section-title">Succession & companion overview</div>
+      <div style="font-size:14px;line-height:1.7;color:var(--text-mid)">${plan.successionPlan}</div>
+    </div>
+    <div class="plant-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">
+      ${(plan.plants||[]).map(p => `
+        <div class="plant-card" onclick="showPlantDetail(${JSON.stringify(p).replace(/"/g,'&quot;')})">
+          <div class="plant-emoji" style="font-size:2rem">${getEmoji(p.name)}</div>
+          <div class="plant-name">${p.name}</div>
+          <div class="plant-variety" style="margin-bottom:8px">${p.variety}</div>
+          <div style="font-size:12px;color:var(--text-mid);line-height:1.6">
+            <div>Qty: ${p.qty}</div>
+            <div>${p.daysToMaturity} days to maturity</div>
+            <div>Spacing: ${p.spacing}</div>
+          </div>
+          <div style="margin-top:8px">
+            <span class="plant-tag ${p.startMethod==='Direct sow'?'tag-direct':p.startMethod==='Start indoors'?'tag-indoor':'tag-transplant'}">${p.startMethod}</span>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="card" style="margin-top:1.25rem">
+      <div class="section-title">Soil preparation</div>
+      <div class="two-col">
+        <div>
+          <div style="font-size:13px;color:var(--text-light);margin-bottom:4px">Compost needed</div>
+          <div style="font-size:1.3rem;font-family:'Playfair Display',serif">${plan.soilPlan?.compostNeeded || '—'}</div>
+          <div style="font-size:13px;color:var(--text-light);margin-top:2px">Target pH: ${plan.soilPlan?.ph || '—'}</div>
+        </div>
+        <div>
+          <div style="font-size:13px;color:var(--text-light);margin-bottom:6px">Amendments</div>
+          <ul style="font-size:14px;padding-left:1rem;line-height:2;color:var(--text-mid)">
+            ${(plan.soilPlan?.amendments||[]).map(a=>`<li>${a}</li>`).join('')}
+          </ul>
+        </div>
+      </div>
+      ${plan.soilPlan?.notes ? `<div class="tip-bar" style="margin-top:12px">${plan.soilPlan.notes}</div>` : ''}
+    </div>`;
+
+  document.getElementById('plantsContent').innerHTML = html;
+}
+
+function showPlantDetail(p) {
+  const shopUrl = `https://www.rareseeds.com/search?q=${encodeURIComponent(p.affiliateSearch || p.name + ' seeds')}`;
+  const johnnyUrl = `https://www.johnnyseeds.com/search#w=${encodeURIComponent(p.name)}`;
+
+  document.getElementById('plantModalContent').innerHTML = `
+    <div style="font-size:2.5rem;margin-bottom:0.5rem">${getEmoji(p.name)}</div>
+    <div class="modal-title">${p.name} <em style="font-family:'Playfair Display',serif;font-size:1rem;font-weight:400;color:var(--text-mid)">${p.variety}</em></div>
+
+    <div class="detail-row"><span class="detail-key">Quantity needed</span><span>${p.qty}</span></div>
+    <div class="detail-row"><span class="detail-key">Start method</span><span>${p.startMethod}</span></div>
+    <div class="detail-row"><span class="detail-key">When to start</span><span>${p.startWeek || '—'}</span></div>
+    <div class="detail-row"><span class="detail-key">When to transplant</span><span>${p.transplantWeek || '—'}</span></div>
+    <div class="detail-row"><span class="detail-key">Days to maturity</span><span>${p.daysToMaturity} days</span></div>
+    <div class="detail-row"><span class="detail-key">Spacing</span><span>${p.spacing}</span></div>
+    <div class="detail-row"><span class="detail-key">Planting depth</span><span>${p.depthToPlant}</span></div>
+    <div class="detail-row"><span class="detail-key">Water needs</span><span>${p.waterNeeds}</span></div>
+    <div class="detail-row"><span class="detail-key">Sun needs</span><span>${p.sunNeeds}</span></div>
+    <div class="detail-row"><span class="detail-key">Succession interval</span><span>${p.successionInterval || 'N/A'}</span></div>
+
+    ${p.notes ? `<div class="tip-bar" style="margin-top:12px">${p.notes}</div>` : ''}
+
+    ${p.companions?.length ? `<div style="margin-top:12px"><div style="font-size:12px;color:var(--text-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px">Good companions</div>${p.companions.map(c=>`<span class="companion-chip">${c}</span>`).join('')}</div>` : ''}
+    ${p.avoid?.length ? `<div style="margin-top:10px"><div style="font-size:12px;color:var(--text-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px">Keep away from</div>${p.avoid.map(c=>`<span class="bad-companion-chip">${c}</span>`).join('')}</div>` : ''}
+
+    <div style="margin-top:1.25rem;display:flex;gap:8px;flex-wrap:wrap">
+      <a href="${shopUrl}" target="_blank" style="padding:8px 16px;background:var(--leaf);color:white;border-radius:var(--radius);text-decoration:none;font-size:13px;font-weight:500">Buy at Baker Creek →</a>
+      <a href="${johnnyUrl}" target="_blank" style="padding:8px 16px;background:var(--cream-dark);color:var(--text-mid);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;font-size:13px">Johnny's Seeds →</a>
+    </div>
+  `;
+
+  document.getElementById('plantModal').classList.add('show');
+}
+
+function closePlantModal() {
+  document.getElementById('plantModal').classList.remove('show');
+}
+
+// ─── BED BUILDER ──────────────────────────────────────────────────────
+function renderBedBuilder(garden) {
+  const plan = garden.plan;
+  const cols = garden.config.bedLength || 8;
+  const rows = garden.config.bedWidth || 4;
+  bedData = garden.bedData || {};
+
+  const plants = plan.plants || [];
+
+  let html = `
+    <div class="dash-header">
+      <h2>Bed Layout Builder</h2>
+      <p>Click a plant, then click cells to place it. Plan your ${garden.config.beds} bed(s), each ${garden.config.bedWidth}ft × ${garden.config.bedLength}ft.</p>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Select what to plant</div>
+      <div class="plant-palette" id="plantPalette">
+        ${plants.map(p => `
+          <div class="palette-item" data-tool="${getEmoji(p.name)}|${p.name}" onclick="selectTool(this, '${getEmoji(p.name)}', '${p.name}')">
+            <span>${getEmoji(p.name)}</span>
+            <span>${p.name}</span>
+          </div>
+        `).join('')}
+        <div class="palette-item eraser" onclick="selectTool(this, 'eraser', 'eraser')">
+          ✕ Erase
+        </div>
+      </div>
+    </div>
+
+    ${Array.from({length: garden.config.beds || 1}, (_, bedIdx) => `
+      <div class="card bed-builder-wrap" style="margin-bottom:1rem">
+        <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+          <span>Bed ${bedIdx+1}</span>
+          <button class="btn-secondary" style="padding:6px 14px;font-size:12px" onclick="clearBed(${bedIdx})">Clear bed</button>
+        </div>
+        <div class="bed-grid-wrap">
+          <div class="bed-grid" id="bed-${bedIdx}" style="grid-template-columns:repeat(${cols},52px)">
+            ${Array.from({length: rows * cols}, (_, i) => {
+              const key = bedIdx + '-' + i;
+              const cell = bedData[key];
+              return `<div class="bed-cell ${cell?'filled':''}" id="cell-${bedIdx}-${i}" onclick="paintCell(${bedIdx},${i})">
+                ${cell ? `<span>${cell.emoji}</span><span class="cell-label">${cell.name.slice(0,3)}</span>` : ''}
+              </div>`;
+            }).join('')}
+          </div>
+        </div>
+        <div style="margin-top:8px;font-size:12px;color:var(--text-light)">
+          ${cols} squares wide × ${rows} squares tall · Each square = 1 sq ft
+        </div>
+      </div>
+    `).join('')}
+
+    <div class="card">
+      <div class="section-title">Companion planting guide</div>
+      <div style="font-size:13px;color:var(--text-mid);line-height:1.7">
+        Place companion plants near each other for best results. Avoid placing incompatible plants adjacent to one another.
+      </div>
+      <div style="margin-top:12px">
+        ${plants.filter(p => p.companions?.length || p.avoid?.length).slice(0,4).map(p => `
+          <div style="padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px">
+            <strong>${getEmoji(p.name)} ${p.name}</strong>
+            ${p.companions?.length ? `<span style="color:var(--text-light)"> loves:</span> ${p.companions.map(c=>`<span class="companion-chip">${c}</span>`).join('')}` : ''}
+            ${p.avoid?.length ? `<span style="color:var(--text-light)"> avoid:</span> ${p.avoid.map(c=>`<span class="bad-companion-chip">${c}</span>`).join('')}` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  document.getElementById('bedbuilderContent').innerHTML = html;
+}
+
+function selectTool(el, emoji, name) {
+  document.querySelectorAll('.palette-item').forEach(p => p.classList.remove('active-tool'));
+  el.classList.add('active-tool');
+  activeTool = { emoji, name };
+}
+
+function paintCell(bedIdx, cellIdx) {
+  if (!activeTool) { alert('Select a plant from the palette first!'); return; }
+  const key = bedIdx + '-' + cellIdx;
+  const cell = document.getElementById('cell-' + bedIdx + '-' + cellIdx);
+
+  if (activeTool.emoji === 'eraser') {
+    delete bedData[key];
+    cell.innerHTML = '';
+    cell.classList.remove('filled');
+  } else {
+    bedData[key] = { emoji: activeTool.emoji, name: activeTool.name };
+    cell.innerHTML = `<span>${activeTool.emoji}</span><span class="cell-label">${activeTool.name.slice(0,3)}</span>`;
+    cell.classList.add('filled');
+  }
+
+  // Save
+  const garden = getActiveGarden();
+  if (garden) { garden.bedData = bedData; saveGardens(); }
+}
+
+function clearBed(bedIdx) {
+  const garden = getActiveGarden();
+  const cols = garden.config.bedLength || 8;
+  const rows = garden.config.bedWidth || 4;
+  for (let i = 0; i < rows * cols; i++) {
+    const key = bedIdx + '-' + i;
+    delete bedData[key];
+    const cell = document.getElementById('cell-' + bedIdx + '-' + i);
+    if (cell) { cell.innerHTML = ''; cell.classList.remove('filled'); }
+  }
+  garden.bedData = bedData;
+  saveGardens();
+}
+
+// ─── CALENDAR ─────────────────────────────────────────────────────────
+function renderCalendar(garden) {
+  const plan = garden.plan;
+  const months = plan.calendar || [];
+  const now = new Date();
+  const currentMonthNum = now.getMonth() + 1;
+
+  let html = `
+    <div class="dash-header">
+      <h2>Planting Calendar</h2>
+      <p>Complete month-by-month schedule for ${garden.name}</p>
+    </div>
+
+    <div class="card" style="margin-bottom:1.25rem">
+      <div class="section-title">Succession planting timeline</div>
+      <div class="succession-wrap">
+        <div class="succession-grid">
+          <div class="sg-header"></div>
+          ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map(m=>`<div class="sg-header">${m}</div>`).join('')}
+          ${(plan.plants||[]).map(p => {
+            const harvestMonths = p.harvestMonths || [];
+            return `
+              <div class="sg-plant-name">${getEmoji(p.name)} ${p.name}</div>
+              ${Array.from({length:12},(_,i)=>{
+                const m = i+1;
+                let cls = '';
+                if (harvestMonths.includes(m)) cls = 'harvest';
+                else if (m >= currentMonthNum && m < currentMonthNum + 2) cls = 'growing';
+                return `<div class="sg-cell ${cls}"></div>`;
+              }).join('')}
+            `;
+          }).join('')}
+        </div>
+        <div class="sg-legend">
+          <div class="sg-legend-item"><div class="sg-legend-dot" style="background:#4a7c3f"></div> Growing season</div>
+          <div class="sg-legend-item"><div class="sg-legend-dot" style="background:#c8782a"></div> Harvest window</div>
+          <div class="sg-legend-item"><div class="sg-legend-dot" style="background:#b3d4f0"></div> Start indoors</div>
+          <div class="sg-legend-item"><div class="sg-legend-dot" style="background:#f0c87a"></div> Succession sow</div>
+        </div>
+      </div>
+    </div>
+
+    ${months.map(month => `
+      <div class="card" style="margin-bottom:1rem ${month.monthNum === currentMonthNum ? ';border-color:var(--leaf)' : ''}">
+        <div class="section-title" style="display:flex;align-items:center;gap:10px">
+          ${month.month}
+          ${month.monthNum === currentMonthNum ? `<span style="font-size:11px;padding:2px 10px;background:var(--leaf-pale);color:var(--leaf);border-radius:100px;font-family:'Libre Franklin',sans-serif">Current month</span>` : ''}
+        </div>
+        ${month.tasks.map(task => {
+          const taskObj = garden.tasks.find(t => t.text === task.text && t.month === month.month);
+          return `
+          <div class="task-item">
+            ${taskObj ? `<input type="checkbox" class="task-check" ${taskObj.done?'checked':''} onchange="toggleTask('${taskObj.id}', this.checked)">` : '<div style="width:18px;flex-shrink:0"></div>'}
+            <div style="flex:1">
+              <div class="task-text ${taskObj?.done?'done':''}">${task.text}</div>
+              ${task.plants?.length ? `<div style="margin-top:3px">${task.plants.map(p=>`<span class="companion-chip">${p}</span>`).join('')}</div>` : ''}
+            </div>
+            <span class="task-month-badge tag-${task.type||'general'}">${task.type||'general'}</span>
+          </div>`;
+        }).join('')}
+        ${month.tasks.length === 0 ? `<p style="font-size:14px;color:var(--text-light)">Rest up — nothing to do this month.</p>` : ''}
+      </div>
+    `).join('')}
+  `;
+
+  document.getElementById('calendarContent').innerHTML = html;
+}
+
+// ─── SHOPPING ─────────────────────────────────────────────────────────
+function renderShopping(garden) {
+  const shop = garden.plan.shoppingList;
+
+  function shopSection(title, items, showBrand) {
+    if (!items?.length) return '';
+    return `
+      <div class="shop-category">${title}</div>
+      ${items.map(item => {
+        const searchQ = encodeURIComponent(item.searchTerm || item.item);
+        const bakerUrl = `https://www.rareseeds.com/search?q=${searchQ}`;
+        const johnnyUrl = `https://www.johnnyseeds.com/search#w=${searchQ}`;
+        const amazonUrl = `https://www.amazon.com/s?k=${searchQ}&tag=plottd-20`;
+        return `
+          <div class="shopping-item">
+            <div>
+              <div class="shopping-name">${item.item}</div>
+              <div class="shopping-detail">Qty: ${item.qty} · ${item.whereToBuy || item.brand || ''}</div>
+              <div style="margin-top:4px;display:flex;gap:8px;flex-wrap:wrap">
+                ${showBrand ? `
+                  <a class="shopping-link" href="${bakerUrl}" target="_blank">Baker Creek</a>
+                  <a class="shopping-link" href="${johnnyUrl}" target="_blank">Johnny's Seeds</a>
+                ` : `
+                  <a class="shopping-link" href="${amazonUrl}" target="_blank">Find on Amazon</a>
+                `}
+              </div>
+            </div>
+            <div class="shopping-right">
+              <div class="shopping-price">${item.estimatedCost}</div>
+            </div>
+          </div>
+        `;
+      }).join('')}`;
+  }
+
+  let html = `
+    <div class="dash-header">
+      <h2>Shopping List</h2>
+      <p>Everything you need to get started — with links to buy</p>
+    </div>
+    <div class="card">
+      <div class="alert-bar">💡 Links open real seed catalogs and retailers. Prices are estimates — always check current pricing before ordering.</div>
+
+      ${shopSection('Seeds & starts', shop?.seeds, true)}
+      ${shopSection('Soil & amendments', shop?.amendments, false)}
+      ${shopSection('Tools', shop?.tools, false)}
+      ${shopSection('Infrastructure', shop?.infrastructure, false)}
+
+      <div class="shop-total">
+        <span>Estimated total</span>
+        <span>${shop?.totalEstimate || '—'}</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:1.25rem">
+      <div class="section-title">Recommended seed sources</div>
+      <div style="font-size:14px;line-height:2">
+        <div><a href="https://www.rareseeds.com" target="_blank" style="color:var(--leaf);text-decoration:none;font-weight:500">Baker Creek Heirloom Seeds</a> — Best for heirloom & open-pollinated varieties</div>
+        <div><a href="https://www.johnnyseeds.com" target="_blank" style="color:var(--leaf);text-decoration:none;font-weight:500">Johnny's Selected Seeds</a> — Excellent for Northeast & cold climates</div>
+        <div><a href="https://www.highmowingseeds.com" target="_blank" style="color:var(--leaf);text-decoration:none;font-weight:500">High Mowing Organic Seeds</a> — Certified organic, great germination rates</div>
+        <div><a href="https://www.fedcoseeds.com" target="_blank" style="color:var(--leaf);text-decoration:none;font-weight:500">Fedco Seeds</a> — Cooperative, affordable, excellent cold-climate selection</div>
+        <div><a href="https://www.burpee.com" target="_blank" style="color:var(--leaf);text-decoration:none;font-weight:500">Burpee</a> — Widely available, good for beginners</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('shoppingContent').innerHTML = html;
+}
+
+// ─── JOURNAL ──────────────────────────────────────────────────────────
+function renderJournal(garden) {
+  const entries = garden.journal || [];
+
+  let html = `
+    <div class="dash-header">
+      <h2>Garden Journal</h2>
+      <p>Track your observations, successes, and lessons learned</p>
+    </div>
+    <div class="card journal-form">
+      <div class="section-title">New entry</div>
+      <textarea id="journalText" rows="3" placeholder="What did you notice today? Pests? Growth milestones? Weather observations? What worked, what didn't?"></textarea>
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        ${['🌱 Sowing','🌿 Growth','🍅 Harvest','🐛 Pest spotted','☀️ Weather','💡 Lesson','✅ Task done'].map(tag=>
+          `<div class="pill" onclick="toggleJournalTag(this,'${tag}')">${tag}</div>`
+        ).join('')}
+      </div>
+      <button class="btn-primary" onclick="addJournalEntry()">Add entry</button>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Past entries (${entries.length})</div>
+      ${entries.length === 0
+        ? `<p style="color:var(--text-light);font-size:14px">No entries yet. Start logging your garden observations!</p>`
+        : entries.slice().reverse().map(e => `
+          <div class="journal-entry">
+            <div class="journal-date">${new Date(e.date).toLocaleDateString('en-US', {weekday:'long',year:'numeric',month:'long',day:'numeric'})}</div>
+            <div class="journal-text">${e.text}</div>
+            ${e.tags?.length ? `<div class="journal-tags">${e.tags.map(t=>`<span class="journal-tag">${t}</span>`).join('')}</div>` : ''}
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+
+  document.getElementById('journalContent').innerHTML = html;
+}
+
+let journalTags = [];
+
+function toggleJournalTag(el, tag) {
+  if (journalTags.includes(tag)) {
+    journalTags = journalTags.filter(t => t !== tag);
+    el.classList.remove('selected');
+  } else {
+    journalTags.push(tag);
+    el.classList.add('selected');
+  }
+}
+
+function addJournalEntry() {
+  const text = document.getElementById('journalText').value.trim();
+  if (!text) { alert('Write something first!'); return; }
+
+  const garden = getActiveGarden();
+  garden.journal = garden.journal || [];
+  garden.journal.push({
+    id: Date.now().toString(),
+    date: new Date().toISOString(),
+    text,
+    tags: [...journalTags]
+  });
+
+  journalTags = [];
+  saveGardens();
+  renderJournal(garden);
+}
+
+// ─── PESTS ────────────────────────────────────────────────────────────
+function renderPests(garden) {
+  const pests = garden.plan.pestWatch || [];
+
+  const highPests = pests.filter(p => p.severity === 'high');
+  const otherPests = pests.filter(p => p.severity !== 'high');
+
+  let html = `
+    <div class="dash-header">
+      <h2>Pest & Disease Watch</h2>
+      <p>Know what to look for — and how to deal with it organically</p>
+    </div>
+
+    ${highPests.length ? `
+    <div class="card" style="margin-bottom:1.25rem;border-color:var(--harvest)">
+      <div class="section-title" style="color:var(--harvest)">⚠️ High priority threats</div>
+      ${highPests.map(p => renderPestCard(p)).join('')}
+    </div>` : ''}
+
+    <div class="card">
+      <div class="section-title">All pests & diseases to watch</div>
+      ${pests.map(p => renderPestCard(p)).join('')}
+    </div>
+
+    <div class="card" style="margin-top:1.25rem">
+      <div class="section-title">General prevention principles</div>
+      ${['Water at the base of plants, not overhead — wet foliage invites fungal disease.',
+         'Practice crop rotation: never plant the same family in the same spot two years running.',
+         'Inspect plants weekly. Early detection is always cheaper than treatment.',
+         'Encourage beneficial insects: plant dill, fennel, and yarrow nearby.',
+         'Remove diseased plant material immediately — do not compost it.'].map(t =>
+        `<div class="tip-bar">${t}</div>`
+      ).join('')}
+    </div>
+  `;
+
+  document.getElementById('pestsContent').innerHTML = html;
+}
+
+function renderPestCard(p) {
+  return `
+    <div class="pest-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="pest-name">${p.name}</div>
+          <div class="pest-affects">Affects: ${p.affects?.join(', ') || '—'}</div>
+        </div>
+        <span class="plant-tag ${p.severity==='high'?'tag-transplant':p.severity==='medium'?'tag-indoor':'tag-direct'}" style="flex-shrink:0">${p.severity || 'low'} risk</span>
+      </div>
+      ${p.symptoms ? `<div style="font-size:13px;color:var(--text-mid);margin-bottom:8px"><strong>Symptoms:</strong> ${p.symptoms}</div>` : ''}
+      <div class="pest-row">
+        <div>
+          <span class="pest-badge pest-prevent">Prevention</span>
+          <div class="pest-detail" style="margin-top:4px">${p.prevention}</div>
+        </div>
+      </div>
+      <div class="pest-row">
+        <div>
+          <span class="pest-badge pest-treat">Organic treatment</span>
+          <div class="pest-detail" style="margin-top:4px">${p.organicTreatment}</div>
+        </div>
+      </div>
+      ${p.conventionalTreatment ? `
+      <div class="pest-row">
+        <div>
+          <span class="pest-badge" style="background:var(--cream-dark);color:var(--text-mid)">Conventional option</span>
+          <div class="pest-detail" style="margin-top:4px">${p.conventionalTreatment}</div>
+        </div>
+      </div>` : ''}
+    </div>
+  `;
+}
+
+// ─── CLOSE MODAL ON BACKDROP ──────────────────────────────────────────
+document.getElementById('plantModal').addEventListener('click', function(e) {
+  if (e.target === this) closePlantModal();
+});
+
+// ─── START ────────────────────────────────────────────────────────────
+function showWizard() {
+  showPage('wizard');
+  initWizard();
+}
+
+init();
+</script>
+</body>
+</html>
