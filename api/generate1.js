@@ -107,7 +107,7 @@ module.exports = async function handler(req, res) {
         tool_choice: { type: 'tool', name: 'create_garden_core' },
         messages: [{
           role: 'user',
-          content: `You are an expert master gardener. Create a complete garden plan with 10-12 plants and a full month-by-month calendar. Include a diverse mix suited to their goals — vegetables, herbs, companion plants. Only include calendar months with real tasks. Be very specific to their region, zone, frost dates, soil, and goals. Include detailed cultivation notes for each plant.\n\n${context}`
+          content: `You are an expert master gardener. Create a complete garden plan with 10-12 plants and a full month-by-month calendar. Include a diverse mix suited to their goals — vegetables, herbs, companion plants. Include a full calendar for all 12 months. Every month should have at least 1-2 tasks — winter months should include planning, ordering seeds, indoor seed starting, soil prep, tool maintenance, or cover crop tasks. Spring/summer/fall should have sowing, planting, fertilizing, harvesting, and pest monitoring tasks. Be very specific to their region, zone, frost dates, soil, and goals. Include detailed cultivation notes for each plant.\n\n${context}`
         }]
       })
     });
