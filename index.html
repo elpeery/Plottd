@@ -1336,6 +1336,8 @@ async function streamAPI(system, userContent) {
     // Last resort: try to extract whatever valid JSON we can
     console.error('JSON parse error:', e.message);
     console.error('JSON length:', jsonStr.length);
+    console.error('Last 500 chars:', jsonStr.slice(-500));
+    console.error('Full text length:', fullText.length);
     // Try truncating to last valid closing brace
     for (let i = jsonStr.length - 1; i > 0; i--) {
       if (jsonStr[i] === '}') {
