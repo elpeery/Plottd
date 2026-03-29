@@ -1329,31 +1329,50 @@ async function streamAPI(system, userContent) {
   const end = fullText.lastIndexOf('}');
   if (start === -1 || end === -1) throw new Error('Could not parse response — please try again.');
   let jsonStr = fullText.slice(start, end + 1);
-  // Fix common JSON issues
-  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1'); // trailing commas
-  // Fix corrupted infrastructure array where totalEstimate leaks into last item
-  jsonStr = jsonStr.replace(/"whereToBuy":\s*"[^"]*"\s*},\s*\{\s*"item":\s*""totalEstimate":/g, 
-    (m) => m.split('{ "item": ""totalEstimate":')[0] + '],"totalEstimate":');
-  jsonStr = jsonStr.replace(/\{ "item": ""totalEstimate":\s*"([^"]*)"\s*\}/g, '],"totalEstimate":"$1"');
+
+  // Fix 1: trailing commas before } or ]
+  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+
+  // Fix 2: truncated array — if JSON ends mid-array, close it
+  // Count unclosed brackets and braces and close them
+  function closeJSON(str) {
+    const stack = [];
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < str.length; i++) {
+      const c = str[i];
+      if (escaped) { escaped = false; continue; }
+      if (c === '\\') { escaped = true; continue; }
+      if (c === '"') { inString = !inString; continue; }
+      if (inString) continue;
+      if (c === '{' || c === '[') stack.push(c === '{' ? '}' : ']');
+      else if (c === '}' || c === ']') stack.pop();
+    }
+    // Remove trailing comma before we close
+    let result = str.replace(/,\s*$/, '');
+    // Close any open structures
+    while (stack.length) result += stack.pop();
+    return result;
+  }
+
   try {
     return JSON.parse(jsonStr);
   } catch(e) {
-    // Last resort: try to extract whatever valid JSON we can
     console.error('JSON parse error:', e.message);
-    console.error('JSON length:', jsonStr.length);
-    console.error('Last 500 chars:', jsonStr.slice(-500));
-    console.error('Full text length:', fullText.length);
-    // Try truncating to last valid closing brace
-    for (let i = jsonStr.length - 1; i > 0; i--) {
-      if (jsonStr[i] === '}') {
-        try {
-          const truncated = jsonStr.slice(0, i + 1);
-          const parsed = JSON.parse(truncated);
-          return parsed;
-        } catch(e2) { continue; }
+    console.error('Last 200 chars:', jsonStr.slice(-200));
+    // Try auto-closing unclosed JSON
+    try {
+      const closed = closeJSON(jsonStr);
+      return JSON.parse(closed);
+    } catch(e2) {
+      // Walk back to last complete top-level value
+      for (let i = jsonStr.length - 1; i > 0; i--) {
+        if (jsonStr[i] === '}') {
+          try { return JSON.parse(jsonStr.slice(0, i + 1)); } catch(e3) { continue; }
+        }
       }
+      throw new Error('Could not parse AI response — please try again.');
     }
-    throw new Error('Could not parse AI response — please try again.');
   }
 }
 
