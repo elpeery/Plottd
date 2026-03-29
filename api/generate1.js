@@ -16,19 +16,16 @@ export default async function handler(req) {
       max_tokens: 4000,
       tools: [{
         name: 'create_garden_core',
-        description: 'Create the core garden plan including plants and soil information',
+        description: 'Create the core garden plan including plants, soil, and calendar',
         input_schema: {
           type: 'object',
           properties: {
-            summary: { type: 'string', description: '2-3 sentence personalized overview' },
-            zone: { type: 'string', description: 'USDA hardiness zone e.g. 6b' },
-            climate: { type: 'string', description: 'Brief climate description' },
+            summary: { type: 'string' },
+            zone: { type: 'string' },
+            climate: { type: 'string' },
             frostDates: {
               type: 'object',
-              properties: {
-                lastSpring: { type: 'string' },
-                firstFall: { type: 'string' }
-              },
+              properties: { lastSpring: { type: 'string' }, firstFall: { type: 'string' } },
               required: ['lastSpring', 'firstFall']
             },
             metrics: {
@@ -77,15 +74,38 @@ export default async function handler(req) {
                 required: ['name', 'variety', 'qty', 'startMethod', 'daysToMaturity', 'spacing', 'harvestMonths', 'notes', 'affiliateSearch']
               }
             },
-            successionPlan: { type: 'string' }
+            successionPlan: { type: 'string' },
+            calendar: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  month: { type: 'string' },
+                  monthNum: { type: 'number' },
+                  tasks: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        text: { type: 'string' },
+                        type: { type: 'string', enum: ['sow', 'plant', 'harvest', 'pest', 'general'] },
+                        plants: { type: 'array', items: { type: 'string' } }
+                      },
+                      required: ['text', 'type', 'plants']
+                    }
+                  }
+                },
+                required: ['month', 'monthNum', 'tasks']
+              }
+            }
           },
-          required: ['summary', 'zone', 'climate', 'frostDates', 'metrics', 'soilPlan', 'plants', 'successionPlan']
+          required: ['summary', 'zone', 'climate', 'frostDates', 'metrics', 'soilPlan', 'plants', 'successionPlan', 'calendar']
         }
       }],
       tool_choice: { type: 'tool', name: 'create_garden_core' },
       messages: [{
         role: 'user',
-        content: `You are an expert master gardener. Create a complete garden plan for this gardener. Include 6-8 plants specific to their region and goals.\n\n${context}`
+        content: `You are an expert master gardener. Create a complete garden plan with 6-8 plants and a full month-by-month calendar. Only include calendar months with real tasks. Be very specific to their region, zone, frost dates, and goals.\n\n${context}`
       }]
     })
   });
