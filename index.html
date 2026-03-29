@@ -1314,14 +1314,13 @@ Notes: ${wiz.notes || 'none'}`;
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
     document.getElementById('loadingSub').textContent = 'Generating your personalized plan...';
 
-    const [part1, part2, part3, part4] = await Promise.all([
+    const [part1, part3, part4] = await Promise.all([
       callPart('/api/generate1', context),
-      callPart('/api/generate2', context),
       callPart('/api/generate3', context),
       callPart('/api/generate4', context)
     ]);
 
-    const plan = { ...part1, ...part2, ...part3, ...part4 };
+    const plan = { ...part1, ...part3, ...part4 };
 
     const garden = {
       id: Date.now().toString(),
