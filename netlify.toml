@@ -1,10 +1,18 @@
 [build]
   functions = "netlify/functions"
 
-[functions."generate"]
-  timeout = 60
+[functions."generate-part1"]
+  timeout = 30
+
+[functions."generate-part2"]
+  timeout = 30
 
 [[redirects]]
-  from = "/api/generate"
-  to = "/.netlify/functions/generate"
+  from = "/api/generate-part1"
+  to = "/.netlify/functions/generate-part1"
+  status = 200
+
+[[redirects]]
+  from = "/api/generate-part2"
+  to = "/.netlify/functions/generate-part2"
   status = 200
