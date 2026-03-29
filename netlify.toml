@@ -2,10 +2,10 @@
   functions = "netlify/functions"
 
 [functions."generate-part1"]
-  timeout = 30
+  timeout = 60
 
 [functions."generate-part2"]
-  timeout = 30
+  timeout = 60
 
 [[redirects]]
   from = "/api/generate-part1"
