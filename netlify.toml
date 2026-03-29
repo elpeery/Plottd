@@ -1,6 +1,9 @@
 [build]
   functions = "netlify/functions"
 
+[functions."generate"]
+  timeout = 60
+
 [[redirects]]
   from = "/api/generate"
   to = "/.netlify/functions/generate"
