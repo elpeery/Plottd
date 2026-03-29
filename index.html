@@ -1298,9 +1298,18 @@ async function callAPI(endpoint, system, userContent) {
   if (!data.content || !data.content[0]) throw new Error('Empty response — please try again.');
   let text = data.content[0].text || '';
   text = text.replace(/```json|```/g, '').trim();
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error('Could not parse response — please try again.');
-  return JSON.parse(match[0]);
+  // Find the outermost JSON object
+  const start = text.indexOf('{');
+  const end = text.lastIndexOf('}');
+  if (start === -1 || end === -1) throw new Error('Could not parse response — please try again.');
+  let jsonStr = text.slice(start, end + 1);
+  // Fix common Haiku JSON issues: trailing commas
+  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
+  try {
+    return JSON.parse(jsonStr);
+  } catch(e) {
+    throw new Error('Could not parse AI response — please try again.');
+  }
 }
 
 async function generatePlan() {
