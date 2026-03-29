@@ -1283,15 +1283,25 @@ function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('show');
 }
 
-async function callPart(endpoint, context) {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ context })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message || 'API error');
-  return data;
+async function callPart(endpoint, context, retries = 2) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context })
+      });
+      const data = await res.json();
+      if (data.error) {
+        if (attempt < retries) { await new Promise(r => setTimeout(r, 1000)); continue; }
+        throw new Error(data.error.message || 'API error');
+      }
+      return data;
+    } catch(e) {
+      if (attempt < retries) { await new Promise(r => setTimeout(r, 1000)); continue; }
+      throw e;
+    }
+  }
 }
 
 
@@ -1371,13 +1381,20 @@ Notes: ${wiz.notes || 'none'}`;
 }
 
 function buildTaskList(plan) {
+  const monthNames = ['january','february','march','april','may','june','july','august','september','october','november','december'];
   const tasks = [];
   (plan.calendar || []).forEach(month => {
+    // Ensure monthNum is set even if AI missed it
+    let monthNum = month.monthNum;
+    if (!monthNum && month.month) {
+      const idx = monthNames.findIndex(m => month.month.toLowerCase().startsWith(m.slice(0,3)));
+      if (idx > -1) monthNum = idx + 1;
+    }
     (month.tasks || []).forEach(task => {
       tasks.push({
         id: Date.now().toString() + Math.random(),
         month: month.month,
-        monthNum: month.monthNum,
+        monthNum: monthNum,
         text: task.text,
         type: task.type || 'general',
         plants: task.plants || [],
@@ -1396,8 +1413,14 @@ function renderDashboard(garden) {
   const monthName = now.toLocaleString('default', { month: 'long' });
 
   // Current month tasks
-  const currentTasks = garden.tasks.filter(t => t.monthNum === currentMonth);
-  const upcomingTasks = garden.tasks.filter(t => t.monthNum === currentMonth + 1);
+  const currentTasks = garden.tasks.filter(t => 
+    t.monthNum === currentMonth || 
+    (t.month && t.month.toLowerCase().startsWith(new Date().toLocaleString('default',{month:'long'}).toLowerCase().slice(0,3)))
+  );
+  const upcomingTasks = garden.tasks.filter(t => 
+    t.monthNum === currentMonth + 1 ||
+    t.monthNum === (currentMonth === 12 ? 1 : currentMonth + 1)
+  );
   const doneTasks = garden.tasks.filter(t => t.done).length;
   const totalTasks = garden.tasks.length;
 
