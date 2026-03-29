@@ -2,8 +2,7 @@ export const config = { runtime: 'edge' };
 
 export default async function handler(req) {
   if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 });
-
-  const body = await req.json();
+  const { context } = await req.json();
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -12,22 +11,92 @@ export default async function handler(req) {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({ ...body, stream: true }),
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4000,
+      tools: [{
+        name: 'create_garden_core',
+        description: 'Create the core garden plan including plants and soil information',
+        input_schema: {
+          type: 'object',
+          properties: {
+            summary: { type: 'string', description: '2-3 sentence personalized overview' },
+            zone: { type: 'string', description: 'USDA hardiness zone e.g. 6b' },
+            climate: { type: 'string', description: 'Brief climate description' },
+            frostDates: {
+              type: 'object',
+              properties: {
+                lastSpring: { type: 'string' },
+                firstFall: { type: 'string' }
+              },
+              required: ['lastSpring', 'firstFall']
+            },
+            metrics: {
+              type: 'object',
+              properties: {
+                estimatedCost: { type: 'string' },
+                weeklyHours: { type: 'string' },
+                harvestWindow: { type: 'string' },
+                totalPlants: { type: 'number' }
+              },
+              required: ['estimatedCost', 'weeklyHours', 'harvestWindow', 'totalPlants']
+            },
+            soilPlan: {
+              type: 'object',
+              properties: {
+                amendments: { type: 'array', items: { type: 'string' } },
+                compostNeeded: { type: 'string' },
+                ph: { type: 'string' },
+                notes: { type: 'string' }
+              },
+              required: ['amendments', 'compostNeeded', 'ph', 'notes']
+            },
+            plants: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  name: { type: 'string' },
+                  variety: { type: 'string' },
+                  qty: { type: 'string' },
+                  startMethod: { type: 'string' },
+                  startWeek: { type: 'string' },
+                  transplantWeek: { type: 'string' },
+                  daysToMaturity: { type: 'number' },
+                  spacing: { type: 'string' },
+                  depthToPlant: { type: 'string' },
+                  waterNeeds: { type: 'string' },
+                  sunNeeds: { type: 'string' },
+                  companions: { type: 'array', items: { type: 'string' } },
+                  avoid: { type: 'array', items: { type: 'string' } },
+                  harvestMonths: { type: 'array', items: { type: 'number' } },
+                  successionInterval: { type: 'string' },
+                  notes: { type: 'string' },
+                  affiliateSearch: { type: 'string' }
+                },
+                required: ['name', 'variety', 'qty', 'startMethod', 'daysToMaturity', 'spacing', 'harvestMonths', 'notes', 'affiliateSearch']
+              }
+            },
+            successionPlan: { type: 'string' }
+          },
+          required: ['summary', 'zone', 'climate', 'frostDates', 'metrics', 'soilPlan', 'plants', 'successionPlan']
+        }
+      }],
+      tool_choice: { type: 'tool', name: 'create_garden_core' },
+      messages: [{
+        role: 'user',
+        content: `You are an expert master gardener. Create a complete garden plan for this gardener. Include 6-8 plants specific to their region and goals.\n\n${context}`
+      }]
+    })
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    return new Response(JSON.stringify({ error }), {
-      status: response.status,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const data = await response.json();
+  if (!response.ok) return new Response(JSON.stringify({ error: data.error }), { status: response.status, headers: { 'Content-Type': 'application/json' } });
 
-  return new Response(response.body, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Access-Control-Allow-Origin': '*',
-    },
+  const toolUse = data.content.find(b => b.type === 'tool_use');
+  if (!toolUse) return new Response(JSON.stringify({ error: { message: 'No tool response' } }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+
+  return new Response(JSON.stringify(toolUse.input), {
+    headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
   });
 }
