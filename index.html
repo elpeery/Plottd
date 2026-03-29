@@ -799,6 +799,7 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
 .detail-row:last-child { border-bottom: none; }
 .detail-key { color: var(--text-light); font-size: 13px; }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/jsonrepair@3/lib/umd/jsonrepair.js"></script>
 </head>
 <body>
 
@@ -1360,15 +1361,24 @@ async function streamAPI(system, userContent) {
   } catch(e) {
     console.error('JSON parse error:', e.message);
     console.error('Last 200 chars:', jsonStr.slice(-200));
+    // Try jsonrepair first
+    try {
+      if (typeof jsonrepair !== 'undefined') {
+        const repaired = jsonrepair(jsonStr);
+        return JSON.parse(repaired);
+      }
+    } catch(e2) {
+      console.error('jsonrepair failed:', e2.message);
+    }
     // Try auto-closing unclosed JSON
     try {
       const closed = closeJSON(jsonStr);
       return JSON.parse(closed);
-    } catch(e2) {
+    } catch(e3) {
       // Walk back to last complete top-level value
       for (let i = jsonStr.length - 1; i > 0; i--) {
         if (jsonStr[i] === '}') {
-          try { return JSON.parse(jsonStr.slice(0, i + 1)); } catch(e3) { continue; }
+          try { return JSON.parse(jsonStr.slice(0, i + 1)); } catch(e4) { continue; }
         }
       }
       throw new Error('Could not parse AI response — please try again.');
