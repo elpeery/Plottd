@@ -1283,108 +1283,17 @@ function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('show');
 }
 
-let _apiCallCounter = 0;
-async function streamAPI(system, userContent) {
-  const endpoint = '/api/generate' + (++_apiCallCounter);
+async function callPart(endpoint, context) {
   const res = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 8096,
-      system: system,
-      messages: [{ role: 'user', content: userContent }]
-    })
+    body: JSON.stringify({ context })
   });
-
-  if (!res.ok) {
-    const err = await res.json();
-    throw new Error(err.error?.message || 'API error');
-  }
-
-  const reader = res.body.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value, { stream: true });
-    const lines = chunk.split('\n');
-    for (const line of lines) {
-      if (line.startsWith('data: ')) {
-        const data = line.slice(6).trim();
-        if (data === '[DONE]') continue;
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-            fullText += parsed.delta.text;
-          }
-        } catch(e) {}
-      }
-    }
-  }
-
-  fullText = fullText.replace(/```json|```/g, '').trim();
-  const start = fullText.indexOf('{');
-  const end = fullText.lastIndexOf('}');
-  if (start === -1 || end === -1) throw new Error('Could not parse response — please try again.');
-  let jsonStr = fullText.slice(start, end + 1);
-
-  // Fix 1: trailing commas before } or ]
-  jsonStr = jsonStr.replace(/,\s*([}\]])/g, '$1');
-
-  // Fix 2: truncated array — if JSON ends mid-array, close it
-  // Count unclosed brackets and braces and close them
-  function closeJSON(str) {
-    const stack = [];
-    let inString = false;
-    let escaped = false;
-    for (let i = 0; i < str.length; i++) {
-      const c = str[i];
-      if (escaped) { escaped = false; continue; }
-      if (c === '\\') { escaped = true; continue; }
-      if (c === '"') { inString = !inString; continue; }
-      if (inString) continue;
-      if (c === '{' || c === '[') stack.push(c === '{' ? '}' : ']');
-      else if (c === '}' || c === ']') stack.pop();
-    }
-    // Remove trailing comma before we close
-    let result = str.replace(/,\s*$/, '');
-    // Close any open structures
-    while (stack.length) result += stack.pop();
-    return result;
-  }
-
-  try {
-    return JSON.parse(jsonStr);
-  } catch(e) {
-    console.error('JSON parse error:', e.message);
-    console.error('Last 200 chars:', jsonStr.slice(-200));
-    // Try jsonrepair first
-    try {
-      if (typeof jsonrepair !== 'undefined') {
-        const repaired = jsonrepair(jsonStr);
-        return JSON.parse(repaired);
-      }
-    } catch(e2) {
-      console.error('jsonrepair failed:', e2.message);
-    }
-    // Try auto-closing unclosed JSON
-    try {
-      const closed = closeJSON(jsonStr);
-      return JSON.parse(closed);
-    } catch(e3) {
-      // Walk back to last complete top-level value
-      for (let i = jsonStr.length - 1; i > 0; i--) {
-        if (jsonStr[i] === '}') {
-          try { return JSON.parse(jsonStr.slice(0, i + 1)); } catch(e4) { continue; }
-        }
-      }
-      throw new Error('Could not parse AI response — please try again.');
-    }
-  }
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || 'API error');
+  return data;
 }
+
 
 async function generatePlan() {
   showLoading();
@@ -1401,72 +1310,15 @@ Notes: ${wiz.notes || 'none'}`;
 
   const context = gardenContext;
 
-  // CALL 1: Core info + plants
-  const sys1 = `You are a master gardener. Return ONLY valid JSON, no markdown.
-{
-  "summary": "2-3 sentence overview specific to this gardener",
-  "zone": "USDA zone",
-  "climate": "climate description",
-  "frostDates": { "lastSpring": "date", "firstFall": "date" },
-  "metrics": { "estimatedCost": "$X-$Y", "weeklyHours": "X-Y", "harvestWindow": "Mon-Mon", "totalPlants": 6 },
-  "soilPlan": { "amendments": ["specific amendment"], "compostNeeded": "X cu ft", "ph": "X.X-X.X", "notes": "specific advice" },
-  "plants": [
-    { "name": "name", "variety": "specific variety", "qty": "amount", "startMethod": "method",
-      "startWeek": "timing", "transplantWeek": "timing", "daysToMaturity": 75,
-      "spacing": "X inches", "depthToPlant": "depth", "waterNeeds": "level",
-      "sunNeeds": "requirement", "companions": ["plant"], "avoid": ["plant"],
-      "harvestMonths": [7,8], "successionInterval": "interval",
-      "notes": "specific tip", "affiliateSearch": "search term" }
-  ],
-  "successionPlan": "3-4 sentence strategy"
-}
-Include 6-8 plants. Be very specific to their region, zone, and goals.`;
-
-  // CALL 2: Calendar
-  const sys2 = `You are a master gardener. Return ONLY valid JSON, no markdown.
-{
-  "calendar": [
-    { "month": "January", "monthNum": 1, "tasks": [
-      { "text": "specific task", "type": "sow|plant|harvest|pest|general", "plants": ["plant name"] }
-    ]}
-  ]
-}
-Include all months that have real tasks. Be specific to their frost dates and plant list.`;
-
-  // CALL 3: Pests
-  const sys3 = `You are a master gardener. Return ONLY valid JSON, no markdown.
-{
-  "pestWatch": [
-    { "name": "pest name", "type": "insect|disease|wildlife",
-      "affects": ["plant"], "symptoms": "what to look for",
-      "prevention": "prevention tip", "organicTreatment": "organic method",
-      "conventionalTreatment": "conventional option", "severity": "low|medium|high" }
-  ]
-}
-Include 4-6 pests most relevant to their specific plant list and region.`;
-
-  // CALL 4: Shopping + tips
-  const sys4 = `You are a master gardener. Return ONLY valid JSON, no markdown.
-{
-  "shoppingList": [
-    { "category": "seeds", "item": "name", "qty": "amount", "estimatedCost": "$X.XX",
-      "brand": "brand name", "searchTerm": "search term", "whereToBuy": "where" }
-  ],
-  "shoppingTotal": "$X-$Y",
-  "proTips": ["specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
-}
-Categories: seeds, amendments, tools, infrastructure. Include everything needed. Be specific to their plant list.`;
-
   try {
-    _apiCallCounter = 0;
     document.getElementById('loadingTitle').textContent = 'Growing your plan...';
-    document.getElementById('loadingSub').textContent = 'Generating 4 sections in parallel...';
+    document.getElementById('loadingSub').textContent = 'Generating your personalized plan...';
 
     const [part1, part2, part3, part4] = await Promise.all([
-      streamAPI(sys1, context),
-      streamAPI(sys2, context),
-      streamAPI(sys3, context),
-      streamAPI(sys4, context)
+      callPart('/api/generate1', context),
+      callPart('/api/generate2', context),
+      callPart('/api/generate3', context),
+      callPart('/api/generate4', context)
     ]);
 
     const plan = { ...part1, ...part2, ...part3, ...part4 };
