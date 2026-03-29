@@ -8,47 +8,53 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;1,400&family=Libre+Franklin:wght@300;400;500&display=swap" rel="stylesheet">
 <style>
 :root {
-  --soil: #3d2b1f;
-  --soil-light: #6b4c3b;
-  --leaf: #4a7c3f;
-  --leaf-light: #7db87a;
-  --leaf-pale: #e8f2e6;
-  --harvest: #c8782a;
-  --harvest-light: #f0c87a;
-  --harvest-pale: #fdf4e3;
-  --sky: #4a7fa5;
-  --sky-pale: #e6f0f7;
-  --cream: #faf8f3;
-  --cream-dark: #f0ece2;
-  --bark: #8b6f5e;
-  --bark-light: #c4a882;
-  --text: #2a2018;
-  --text-mid: #6b5a4e;
-  --text-light: #a08878;
-  --border: #d8cfc4;
-  --border-light: #ece8e0;
+  --soil: #1a1a1a;
+  --soil-light: #2e2e2e;
+  --leaf: #4a7fa5;
+  --leaf-light: #6b9dbf;
+  --leaf-pale: #e8f2f8;
+  --harvest: #c9553a;
+  --harvest-light: #d97060;
+  --harvest-pale: #faf0ee;
+  --sky: #7b8fd4;
+  --sky-pale: #eef0f9;
+  --berry: #7b8fd4;
+  --berry-pale: #eef0f9;
+  --rose: #c9553a;
+  --rose-pale: #faf0ee;
+  --sun: #4a7fa5;
+  --sun-pale: #e8f2f8;
+  --cream: #ffffff;
+  --cream-dark: #f7f7f5;
+  --bark: #6b6b6b;
+  --bark-light: #9a9a9a;
+  --text: #1a1a1a;
+  --text-mid: #4a4a4a;
+  --text-light: #8a8a8a;
+  --border: #e4e4e0;
+  --border-light: #f0f0ec;
   --white: #ffffff;
-  --danger: #c0392b;
-  --danger-pale: #fdf0ee;
-  --success: #27ae60;
-  --radius: 10px;
-  --radius-lg: 16px;
-  --shadow: 0 2px 12px rgba(42,32,24,0.08);
-  --shadow-lg: 0 8px 32px rgba(42,32,24,0.12);
+  --danger: #c9553a;
+  --danger-pale: #faf0ee;
+  --success: #4a7fa5;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow: 0 1px 8px rgba(26,26,26,0.07);
+  --shadow-lg: 0 8px 32px rgba(26,26,26,0.12);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
   font-family: 'Libre Franklin', sans-serif;
-  background: var(--cream);
+  background: #f8fafc;
   color: var(--text);
   min-height: 100vh;
 }
 
 /* NAV */
 .nav {
-  background: var(--soil);
+  background: var(--white);
   padding: 0 2rem;
   display: flex;
   align-items: center;
@@ -56,62 +62,64 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(15,23,42,0.05);
 }
 
 .nav-brand {
   font-family: 'Playfair Display', serif;
-  font-size: 1.3rem;
-  color: var(--harvest-light);
+  font-size: 1.4rem;
+  color: var(--leaf);
   padding: 1rem 1.5rem 1rem 0;
-  border-right: 1px solid rgba(255,255,255,0.1);
+  border-right: 1px solid var(--border);
   margin-right: 0.5rem;
-  letter-spacing: 0.5px;
+  letter-spacing: -0.5px;
   cursor: pointer;
+  font-weight: 500;
 }
 
 .nav-tab {
-  padding: 1rem 1.25rem;
+  padding: 1rem 1.1rem;
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255,255,255,0.6);
+  color: var(--text-mid);
   cursor: pointer;
   transition: color 0.2s;
   border-bottom: 2px solid transparent;
   white-space: nowrap;
 }
 
-.nav-tab:hover { color: rgba(255,255,255,0.9); }
-.nav-tab.active { color: var(--harvest-light); border-bottom-color: var(--harvest-light); font-weight: 500; }
+.nav-tab:hover { color: var(--text); }
+.nav-tab.active { color: var(--leaf); border-bottom-color: var(--leaf); font-weight: 500; }
 
 .nav-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 
 .garden-selector {
-  background: rgba(255,255,255,0.08);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 6px;
-  color: white;
+  background: var(--cream-dark);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
   font-family: 'Libre Franklin', sans-serif;
   font-size: 13px;
   padding: 6px 10px;
   cursor: pointer;
 }
 
-.garden-selector option { background: var(--soil); }
+.garden-selector option { background: white; }
 
 .btn-new-garden {
-  background: var(--harvest);
+  background: var(--leaf);
   color: white;
   border: none;
-  border-radius: 6px;
-  padding: 6px 14px;
+  border-radius: 8px;
+  padding: 7px 16px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   font-family: 'Libre Franklin', sans-serif;
   transition: background 0.2s;
 }
-.btn-new-garden:hover { background: var(--harvest-light); color: var(--text); }
+.btn-new-garden:hover { background: var(--leaf-light); }
 
 /* PAGES */
 .page { display: none; padding: 2rem; max-width: 1100px; margin: 0 auto; }
@@ -127,8 +135,8 @@ body {
 
 .welcome-hero h1 {
   font-family: 'Playfair Display', serif;
-  font-size: 3rem;
-  font-weight: 400;
+  font-size: 3.2rem;
+  font-weight: 500;
   color: var(--text);
   line-height: 1.15;
   margin-bottom: 1rem;
@@ -136,7 +144,7 @@ body {
 
 .welcome-hero h1 em {
   font-style: italic;
-  color: var(--leaf);
+  color: var(--harvest);
 }
 
 .welcome-hero p {
@@ -242,7 +250,7 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
 }
 
 .pill:hover { border-color: var(--leaf); color: var(--leaf); }
-.pill.selected { background: var(--leaf-pale); border-color: var(--leaf); color: var(--leaf); font-weight: 500; }
+.pill.selected { background: var(--leaf); border-color: var(--leaf); color: white; font-weight: 500; }
 
 .btn-row { display: flex; gap: 10px; margin-top: 1rem; }
 
@@ -255,12 +263,13 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
   border-radius: var(--radius);
   font-family: 'Libre Franklin', sans-serif;
   font-size: 15px;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: all 0.2s;
+  letter-spacing: 0.2px;
 }
-.btn-primary:hover { background: #3a6330; }
-.btn-primary:disabled { background: var(--border); color: var(--text-light); cursor: not-allowed; }
+.btn-primary:hover { background: var(--leaf-light); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(74,127,165,0.25); }
+.btn-primary:disabled { background: var(--border); color: var(--text-light); cursor: not-allowed; transform: none; box-shadow: none; }
 
 .btn-secondary {
   padding: 13px 20px;
@@ -304,9 +313,22 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
   background: var(--white);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 1rem;
+  padding: 1rem 1rem 1rem 1.25rem;
   box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
 }
+.metric-card::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--leaf);
+  border-radius: 4px 0 0 4px;
+}
+.metric-card:nth-child(2)::before { background: var(--harvest); }
+.metric-card:nth-child(3)::before { background: var(--sky); }
+.metric-card:nth-child(4)::before { background: var(--berry); }
 
 .metric-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-light); margin-bottom: 4px; }
 .metric-value { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 400; color: var(--text); }
@@ -322,11 +344,12 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
 .section-title {
   font-family: 'Playfair Display', serif;
   font-size: 1.1rem;
-  font-weight: 400;
+  font-weight: 500;
   margin-bottom: 1rem;
   color: var(--text);
   padding-bottom: 8px;
-  border-bottom: 1px solid var(--border-light);
+  border-bottom: 2px solid var(--border-light);
+  letter-spacing: -0.2px;
 }
 
 /* TASKS */
@@ -374,10 +397,10 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
 .task-text.done { text-decoration: line-through; color: var(--text-light); }
 .task-month-badge {
   font-size: 11px;
-  font-weight: 500;
-  color: var(--leaf);
-  background: var(--leaf-pale);
-  padding: 2px 8px;
+  font-weight: 600;
+  color: white;
+  background: var(--leaf);
+  padding: 3px 10px;
   border-radius: 100px;
   white-space: nowrap;
 }
@@ -392,27 +415,27 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
 }
 
 .plant-card {
-  background: var(--cream);
-  border: 1px solid var(--border);
+  background: var(--white);
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  padding: 12px;
+  padding: 14px;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.2s;
 }
 
 .plant-card:hover {
   border-color: var(--leaf);
-  box-shadow: var(--shadow);
-  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(34,197,94,0.15);
+  transform: translateY(-2px);
 }
 
 .plant-emoji { font-size: 24px; margin-bottom: 6px; }
 .plant-name { font-weight: 500; font-size: 14px; margin-bottom: 2px; }
 .plant-variety { font-size: 11px; color: var(--text-light); margin-bottom: 6px; }
 .plant-tag { font-size: 11px; padding: 2px 8px; border-radius: 100px; display: inline-block; }
-.tag-direct { background: var(--sky-pale); color: var(--sky); }
-.tag-indoor { background: var(--harvest-pale); color: var(--harvest); }
-.tag-transplant { background: var(--leaf-pale); color: var(--leaf); }
+.tag-direct { background: var(--sky); color: white; }
+.tag-indoor { background: var(--sun); color: white; }
+.tag-transplant { background: var(--leaf); color: white; }
 
 /* BED BUILDER */
 .bed-builder-wrap { }
@@ -582,24 +605,24 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
 /* ALERTS / TIPS */
 .tip-bar {
   background: var(--leaf-pale);
-  border-left: 3px solid var(--leaf);
+  border-left: 4px solid var(--leaf);
   border-radius: 0 var(--radius) var(--radius) 0;
-  padding: 10px 14px;
+  padding: 12px 16px;
   font-size: 13px;
-  color: var(--text-mid);
+  color: var(--text);
   margin-bottom: 10px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 .alert-bar {
-  background: var(--harvest-pale);
-  border-left: 3px solid var(--harvest);
+  background: var(--sun-pale);
+  border-left: 4px solid var(--sun);
   border-radius: 0 var(--radius) var(--radius) 0;
-  padding: 10px 14px;
+  padding: 12px 16px;
   font-size: 13px;
-  color: var(--text-mid);
+  color: var(--text);
   margin-bottom: 10px;
-  line-height: 1.5;
+  line-height: 1.6;
 }
 
 /* LOADING */
@@ -762,30 +785,32 @@ input[type=text]:focus, input[type=number]:focus, select:focus, textarea:focus {
   .page { padding: 1rem; }
 }
 
-.tag-sow { background: var(--sky-pale); color: var(--sky); }
-.tag-plant { background: var(--leaf-pale); color: var(--leaf); }
-.tag-harvest { background: var(--harvest-pale); color: var(--harvest); }
-.tag-pest { background: var(--danger-pale); color: var(--danger); }
-.tag-general { background: var(--cream-dark); color: var(--text-mid); }
+.tag-sow { background: var(--sky); color: white; }
+.tag-plant { background: var(--leaf); color: white; }
+.tag-harvest { background: var(--harvest); color: white; }
+.tag-pest { background: var(--danger); color: white; }
+.tag-general { background: var(--text-mid); color: white; }
 
 .companion-chip {
   display: inline-block;
   font-size: 11px;
-  padding: 2px 8px;
-  background: var(--leaf-pale);
-  color: var(--leaf);
+  padding: 3px 10px;
+  background: var(--leaf);
+  color: white;
   border-radius: 100px;
   margin: 2px;
+  font-weight: 500;
 }
 
 .bad-companion-chip {
   display: inline-block;
   font-size: 11px;
-  padding: 2px 8px;
-  background: var(--danger-pale);
-  color: var(--danger);
+  padding: 3px 10px;
+  background: var(--danger);
+  color: white;
   border-radius: 100px;
   margin: 2px;
+  font-weight: 500;
 }
 
 .detail-row {
