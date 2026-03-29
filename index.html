@@ -1322,6 +1322,28 @@ Notes: ${wiz.notes || 'none'}`;
 
     const plan = { ...part1, ...part3, ...part4 };
 
+    // Pre-populate bed with AI plant suggestions
+    const autoBedData = {};
+    const plants = plan.plants || [];
+    const cols = wiz.bedLength || 8;
+    const rows = wiz.bedWidth || 4;
+    const bedsCount = wiz.beds || 1;
+    let plantIdx = 0;
+    for (let bed = 0; bed < bedsCount && plantIdx < plants.length; bed++) {
+      for (let r = 0; r < rows && plantIdx < plants.length; r++) {
+        const p = plants[plantIdx];
+        const emoji = getEmoji(p.name);
+        // Fill a row per plant based on spacing
+        const spacingFt = parseInt(p.spacing) || 12;
+        const cellsPerPlant = Math.max(1, Math.round(spacingFt / 12));
+        for (let c = 0; c < cols && c < cellsPerPlant * 2; c += cellsPerPlant) {
+          const key = bed + '-' + (r * cols + c);
+          autoBedData[key] = { emoji, name: p.name };
+        }
+        plantIdx++;
+      }
+    }
+
     const garden = {
       id: Date.now().toString(),
       name: wiz.name || 'My Garden',
@@ -1330,7 +1352,7 @@ Notes: ${wiz.notes || 'none'}`;
       plan: plan,
       tasks: buildTaskList(plan),
       journal: [],
-      bedData: {},
+      bedData: autoBedData,
     };
 
     gardens.push(garden);
@@ -1527,8 +1549,9 @@ function renderPlants(garden) {
 }
 
 function showPlantDetail(p) {
-  const shopUrl = `https://www.rareseeds.com/search?q=${encodeURIComponent(p.affiliateSearch || p.name + ' seeds')}`;
-  const johnnyUrl = `https://www.johnnyseeds.com/search#w=${encodeURIComponent(p.name)}`;
+  const shopUrl = `https://www.rareseeds.com/search?query=${encodeURIComponent(p.affiliateSearch || p.name + ' seeds')}`;
+  const johnnyUrl = `https://www.johnnyseeds.com/search/?q=${encodeURIComponent(p.affiliateSearch || p.name)}`;
+  const hmowingUrl = `https://www.highmowingseeds.com/catalogsearch/result/?q=${encodeURIComponent(p.affiliateSearch || p.name)}`;
 
   document.getElementById('plantModalContent').innerHTML = `
     <div style="font-size:2.5rem;margin-bottom:0.5rem">${getEmoji(p.name)}</div>
@@ -1551,8 +1574,9 @@ function showPlantDetail(p) {
     ${p.avoid?.length ? `<div style="margin-top:10px"><div style="font-size:12px;color:var(--text-light);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.6px">Keep away from</div>${p.avoid.map(c=>`<span class="bad-companion-chip">${c}</span>`).join('')}</div>` : ''}
 
     <div style="margin-top:1.25rem;display:flex;gap:8px;flex-wrap:wrap">
-      <a href="${shopUrl}" target="_blank" style="padding:8px 16px;background:var(--leaf);color:white;border-radius:var(--radius);text-decoration:none;font-size:13px;font-weight:500">Buy at Baker Creek →</a>
+      <a href="${shopUrl}" target="_blank" style="padding:8px 16px;background:var(--leaf);color:white;border-radius:var(--radius);text-decoration:none;font-size:13px;font-weight:500">Baker Creek →</a>
       <a href="${johnnyUrl}" target="_blank" style="padding:8px 16px;background:var(--cream-dark);color:var(--text-mid);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;font-size:13px">Johnny's Seeds →</a>
+      <a href="${hmowingUrl}" target="_blank" style="padding:8px 16px;background:var(--cream-dark);color:var(--text-mid);border:1px solid var(--border);border-radius:var(--radius);text-decoration:none;font-size:13px">High Mowing →</a>
     </div>
   `;
 
@@ -1772,9 +1796,11 @@ function renderShopping(garden) {
       <div class="shop-category">${title}</div>
       ${items.map(item => {
         const searchQ = encodeURIComponent(item.searchTerm || item.item);
-        const bakerUrl = `https://www.rareseeds.com/search?q=${searchQ}`;
-        const johnnyUrl = `https://www.johnnyseeds.com/search#w=${searchQ}`;
-        const amazonUrl = `https://www.amazon.com/s?k=${searchQ}&tag=plottd-20`;
+        const bakerUrl = `https://www.rareseeds.com/search?query=${searchQ}`;
+        const johnnyUrl = `https://www.johnnyseeds.com/search/?q=${searchQ}`;
+        const hmowingUrl = `https://www.highmowingseeds.com/catalogsearch/result/?q=${searchQ}`;
+        const acehardwareUrl = `https://www.acehardware.com/search?query=${searchQ}`;
+        const homedepotUrl = `https://www.homedepot.com/s/${searchQ}`;
         return `
           <div class="shopping-item">
             <div>
@@ -1784,8 +1810,10 @@ function renderShopping(garden) {
                 ${showBrand ? `
                   <a class="shopping-link" href="${bakerUrl}" target="_blank">Baker Creek</a>
                   <a class="shopping-link" href="${johnnyUrl}" target="_blank">Johnny's Seeds</a>
+                  <a class="shopping-link" href="${hmowingUrl}" target="_blank">High Mowing</a>
                 ` : `
-                  <a class="shopping-link" href="${amazonUrl}" target="_blank">Find on Amazon</a>
+                  <a class="shopping-link" href="${acehardwareUrl}" target="_blank">Ace Hardware</a>
+                  <a class="shopping-link" href="${homedepotUrl}" target="_blank">Home Depot</a>
                 `}
               </div>
             </div>
@@ -1939,33 +1967,45 @@ function renderPests(garden) {
 }
 
 function renderPestCard(p) {
+  const pestSearchQ = encodeURIComponent(p.name + ' garden pest');
+  const organicSearchQ = encodeURIComponent(p.organicTreatment + ' garden');
+  const conventionalSearchQ = encodeURIComponent(p.conventionalTreatment + ' garden');
+  const imgUrl = `https://www.google.com/search?tbm=isch&q=${pestSearchQ}`;
+  const organicBuyUrl = `https://www.acehardware.com/search?query=${encodeURIComponent(p.organicTreatment)}`;
+  const conventionalBuyUrl = `https://www.homedepot.com/s/${encodeURIComponent(p.conventionalTreatment)}`;
+
   return `
     <div class="pest-card">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+        <div style="flex:1">
           <div class="pest-name">${p.name}</div>
           <div class="pest-affects">Affects: ${p.affects?.join(', ') || '—'}</div>
         </div>
-        <span class="plant-tag ${p.severity==='high'?'tag-transplant':p.severity==='medium'?'tag-indoor':'tag-direct'}" style="flex-shrink:0">${p.severity || 'low'} risk</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0">
+          <a href="${imgUrl}" target="_blank" style="font-size:11px;padding:3px 10px;background:var(--sky-pale);color:var(--sky);border-radius:100px;text-decoration:none">See photos →</a>
+          <span class="plant-tag ${p.severity==='high'?'tag-transplant':p.severity==='medium'?'tag-indoor':'tag-direct'}">${p.severity || 'low'} risk</span>
+        </div>
       </div>
-      ${p.symptoms ? `<div style="font-size:13px;color:var(--text-mid);margin-bottom:8px"><strong>Symptoms:</strong> ${p.symptoms}</div>` : ''}
+      ${p.symptoms ? `<div style="font-size:13px;color:var(--text-mid);margin-bottom:8px;margin-top:6px"><strong>Symptoms:</strong> ${p.symptoms}</div>` : ''}
       <div class="pest-row">
-        <div>
+        <div style="flex:1">
           <span class="pest-badge pest-prevent">Prevention</span>
           <div class="pest-detail" style="margin-top:4px">${p.prevention}</div>
         </div>
       </div>
       <div class="pest-row">
-        <div>
+        <div style="flex:1">
           <span class="pest-badge pest-treat">Organic treatment</span>
           <div class="pest-detail" style="margin-top:4px">${p.organicTreatment}</div>
+          <a href="${organicBuyUrl}" target="_blank" style="font-size:11px;color:var(--leaf);text-decoration:none;margin-top:4px;display:inline-block">Buy at Ace Hardware →</a>
         </div>
       </div>
       ${p.conventionalTreatment ? `
       <div class="pest-row">
-        <div>
+        <div style="flex:1">
           <span class="pest-badge" style="background:var(--cream-dark);color:var(--text-mid)">Conventional option</span>
           <div class="pest-detail" style="margin-top:4px">${p.conventionalTreatment}</div>
+          <a href="${conventionalBuyUrl}" target="_blank" style="font-size:11px;color:var(--text-light);text-decoration:none;margin-top:4px;display:inline-block">Find at Home Depot →</a>
         </div>
       </div>` : ''}
     </div>
