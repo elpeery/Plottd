@@ -1282,114 +1282,102 @@ function hideLoading() {
   document.getElementById('loadingOverlay').classList.remove('show');
 }
 
+async function callAPI(system, userContent) {
+  const res = await fetch('/api/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 2500,
+      system: system,
+      messages: [{ role: 'user', content: userContent }]
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  if (!data.content || !data.content[0]) throw new Error('Empty response — please try again.');
+  let text = data.content[0].text || '';
+  text = text.replace(/```json|```/g, '').trim();
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error('Could not parse response — please try again.');
+  return JSON.parse(match[0]);
+}
+
 async function generatePlan() {
   showLoading();
 
-  const systemPrompt = `You are an expert master gardener. Generate a complete, highly detailed garden plan. 
-Return ONLY valid JSON, no markdown, no fences, no extra text.
-Required JSON structure:
+  const gardenContext = `ZIP: ${wiz.zip}, State: ${wiz.state}
+Garden: ${wiz.name || 'My Garden'}
+Space: ${wiz.space}, Type: ${wiz.gardenType}, Sun: ${wiz.sunExposure}
+Beds: ${wiz.beds} beds, each ${wiz.bedWidth}ft × ${wiz.bedLength}ft
+Goals: ${wiz.goals.join(', ')}
+Wanted: ${wiz.wantedPlants || 'none'}, Avoid: ${wiz.avoidPlants || 'none'}
+Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
+Soil: ${wiz.soil}, Preferences: ${wiz.preferences.join(', ') || 'none'}
+Notes: ${wiz.notes || 'none'}`;
+
+  const systemPart1 = `You are an expert master gardener. Return ONLY valid JSON, no markdown, no fences.
+Generate this JSON structure:
 {
   "summary": "2-3 sentence personalized overview",
   "zone": "USDA zone e.g. 6b",
   "climate": "brief climate description",
   "frostDates": { "lastSpring": "e.g. April 15", "firstFall": "e.g. October 15" },
-  "metrics": { "estimatedCost": "$X–$Y", "weeklyHours": "X–Y", "harvestWindow": "Month–Month", "totalPlants": 12 },
-  "soilPlan": {
-    "amendments": ["specific amendment with amount"],
-    "compostNeeded": "X cubic feet",
-    "ph": "ideal pH range",
-    "notes": "specific advice for their soil type"
-  },
+  "metrics": { "estimatedCost": "$X–$Y", "weeklyHours": "X–Y", "harvestWindow": "Month–Month", "totalPlants": 8 },
+  "soilPlan": { "amendments": ["amendment with amount"], "compostNeeded": "X cubic feet", "ph": "6.0–7.0", "notes": "specific advice" },
   "plants": [
     {
-      "name": "Common name",
-      "variety": "Specific recommended variety",
-      "qty": "exact number or weight of seed",
+      "name": "Common name", "variety": "Specific variety", "qty": "amount",
       "startMethod": "Direct sow|Start indoors|Buy transplant",
-      "startWeek": "e.g. 8 weeks before last frost",
-      "transplantWeek": "e.g. After last frost",
-      "daysToMaturity": 75,
-      "spacing": "12 inches",
-      "depthToPlant": "1/4 inch",
-      "waterNeeds": "Regular|Moderate|Low",
-      "sunNeeds": "Full sun|Partial shade|Full shade",
-      "companions": ["plant that grows well with this"],
-      "avoid": ["plant to keep away"],
-      "pests": ["common pest"],
-      "harvestMonths": [7, 8, 9],
-      "successionInterval": "2 weeks",
-      "notes": "specific cultivation tip",
-      "affiliateSearch": "search term for buying seeds e.g. 'Cherokee Purple tomato seeds'"
+      "startWeek": "e.g. 8 weeks before last frost", "transplantWeek": "e.g. After last frost",
+      "daysToMaturity": 75, "spacing": "12 inches", "depthToPlant": "1/4 inch",
+      "waterNeeds": "Regular|Moderate|Low", "sunNeeds": "Full sun|Partial shade",
+      "companions": ["companion plant"], "avoid": ["incompatible plant"],
+      "harvestMonths": [7,8,9], "successionInterval": "2 weeks",
+      "notes": "cultivation tip", "affiliateSearch": "seed search term"
     }
   ],
-  "successionPlan": "detailed 3-4 sentence succession strategy",
+  "successionPlan": "3-4 sentence succession strategy",
   "calendar": [
     { "month": "January", "monthNum": 1, "tasks": [
-      { "text": "task description", "type": "sow|plant|harvest|pest|general", "plants": ["plant name"] }
+      { "text": "task", "type": "sow|plant|harvest|pest|general", "plants": ["plant"] }
     ]}
-  ],
+  ]
+}
+Be specific to their region. Include 5-8 plants. Include all 12 months in calendar.`;
+
+  const systemPart2 = `You are an expert master gardener. Return ONLY valid JSON, no markdown, no fences.
+Given this garden context, generate the pest watch and shopping list JSON:
+{
   "pestWatch": [
     {
-      "name": "Pest or disease name",
-      "type": "insect|disease|wildlife",
-      "affects": ["plant names"],
-      "symptoms": "what to look for",
-      "prevention": "prevention tip",
-      "organicTreatment": "organic treatment",
-      "conventionalTreatment": "conventional option",
-      "severity": "low|medium|high"
+      "name": "pest/disease name", "type": "insect|disease|wildlife",
+      "affects": ["plant names"], "symptoms": "what to look for",
+      "prevention": "prevention tip", "organicTreatment": "organic option",
+      "conventionalTreatment": "conventional option", "severity": "low|medium|high"
     }
   ],
   "shoppingList": {
-    "seeds": [{ "item": "name", "qty": "packet count", "estimatedCost": "$X.XX", "brand": "e.g. Baker Creek", "searchTerm": "search term" }],
-    "amendments": [{ "item": "name", "qty": "amount", "estimatedCost": "$X.XX", "whereToBuy": "garden center|hardware store|online" }],
+    "seeds": [{ "item": "name", "qty": "1 packet", "estimatedCost": "$X.XX", "brand": "Baker Creek", "searchTerm": "search term" }],
+    "amendments": [{ "item": "name", "qty": "amount", "estimatedCost": "$X.XX", "whereToBuy": "garden center" }],
     "tools": [{ "item": "name", "qty": "1", "estimatedCost": "$X.XX", "whereToBuy": "hardware store" }],
-    "infrastructure": [{ "item": "name", "qty": "amount", "estimatedCost": "$X.XX", "whereToBuy": "hardware store|online" }],
+    "infrastructure": [{ "item": "name", "qty": "amount", "estimatedCost": "$X.XX", "whereToBuy": "hardware store" }],
     "totalEstimate": "$XXX–$XXX"
   },
-  "proTips": ["specific tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
+  "proTips": ["tip 1", "tip 2", "tip 3", "tip 4", "tip 5"]
 }
-Be very specific to their ZIP/region, space, goals, budget, soil, and constraints. Generate 5-10 plants.`;
-
-  const userPrompt = `Create a complete garden plan:
-ZIP: ${wiz.zip}, State: ${wiz.state}
-Garden name: ${wiz.name || 'My Garden'}
-Space: ${wiz.space}, Type: ${wiz.gardenType}, Sun: ${wiz.sunExposure}
-Beds: ${wiz.beds} beds, each ${wiz.bedWidth}ft × ${wiz.bedLength}ft
-Goals: ${wiz.goals.join(', ')}
-Wanted plants: ${wiz.wantedPlants || 'none specified'}
-Avoid: ${wiz.avoidPlants || 'none'}
-Experience: ${wiz.experience}, Time: ${wiz.time}/week, Budget: ${wiz.budget}
-Soil: ${wiz.soil}
-Preferences: ${wiz.preferences.join(', ') || 'none'}
-Notes: ${wiz.notes || 'none'}`;
+Be specific to their plant list and region.`;
 
   try {
-    const res = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 6000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }]
-      })
-    });
+    document.getElementById('loadingTitle').textContent = 'Building your plant list & calendar...';
+    const part1 = await callAPI(systemPart1, gardenContext);
 
-    const data = await res.json();
+    document.getElementById('loadingTitle').textContent = 'Generating pest watch & shopping list...';
+    const plantList = (part1.plants || []).map(p => p.name).join(', ');
+    const part2 = await callAPI(systemPart2, `${gardenContext}\nSelected plants: ${plantList}`);
 
-    if (data.error) throw new Error(data.error.message);
-    if (!data.content || !data.content[0]) throw new Error('Empty response from AI — please try again.');
+    const plan = { ...part1, ...part2 };
 
-    let text = data.content[0].text || '';
-    text = text.replace(/```json|```/g, '').trim();
-
-    // Extract JSON if wrapped in other text
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Could not parse plan — please try again.');
-    const plan = JSON.parse(jsonMatch[0]);
-
-    // Create garden object
     const garden = {
       id: Date.now().toString(),
       name: wiz.name || 'My Garden',
