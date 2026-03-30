@@ -1365,68 +1365,118 @@ Notes: ${wiz.notes || 'none'}`;
     const rows = parseInt(wiz.bedWidth) || 4;
     const bedsCount = parseInt(wiz.beds) || 1;
 
+    // Square foot gardening: plants per square foot based on spacing
+    function plantsPerSqFt(spacingInches) {
+      if (spacingInches <= 3) return 16;   // carrots, radishes
+      if (spacingInches <= 4) return 9;    // beets, onions, spinach
+      if (spacingInches <= 6) return 4;    // lettuce, herbs, garlic
+      if (spacingInches <= 9) return 1;    // chard, kale, parsley
+      if (spacingInches <= 12) return 1;   // 1 per sq ft
+      if (spacingInches <= 18) return 0.5; // needs 2 sq ft
+      if (spacingInches <= 24) return 0.25;// needs 4 sq ft (peppers, eggplant)
+      return 0.11;                          // needs 9 sq ft (tomatoes, squash)
+    }
+
+    function getPlantHeight(name) {
+      const n = name.toLowerCase();
+      if (n.includes('tomato') || n.includes('corn') || n.includes('sunflower') || 
+          n.includes('bean pole') || n.includes('indeterminate')) return 'tall';
+      if (n.includes('squash') || n.includes('zucchini') || n.includes('cucumber') || 
+          n.includes('melon') || n.includes('pumpkin')) return 'sprawling';
+      if (n.includes('pepper') || n.includes('eggplant') || n.includes('kale') || 
+          n.includes('broccoli') || n.includes('cauliflower') || n.includes('cabbage')) return 'medium';
+      if (n.includes('marigold') || n.includes('nasturtium') || n.includes('zinnia') ||
+          n.includes('flower') || n.includes('lavender')) return 'companion';
+      if (n.includes('basil') || n.includes('parsley') || n.includes('dill') || 
+          n.includes('cilantro') || n.includes('chive') || n.includes('thyme') ||
+          n.includes('rosemary') || n.includes('mint') || n.includes('herb')) return 'herb';
+      return 'low'; // lettuce, spinach, carrots, radishes, onions, garlic
+    }
+
     function smartLayoutBed(bedIdx, bedPlants, cols, rows) {
       const cells = {};
       const notes = [];
+      const totalCells = cols * rows;
 
-      // Sort plants: companions together, tall plants first (north edge = row 0)
-      // Categorize plants
-      const tallPlants = bedPlants.filter(p => {
-        const n = p.name.toLowerCase();
-        return n.includes('tomato') || n.includes('corn') || n.includes('bean') || 
-               n.includes('pea') || n.includes('sunflower') || n.includes('squash') ||
-               n.includes('zucchini') || n.includes('cucumber') || n.includes('pepper');
-      });
-      const groundPlants = bedPlants.filter(p => {
-        const n = p.name.toLowerCase();
-        return n.includes('lettuce') || n.includes('spinach') || n.includes('kale') ||
-               n.includes('radish') || n.includes('carrot') || n.includes('beet') ||
-               n.includes('onion') || n.includes('garlic');
-      });
-      const herbs = bedPlants.filter(p => {
-        const n = p.name.toLowerCase();
-        return n.includes('basil') || n.includes('parsley') || n.includes('dill') ||
-               n.includes('cilantro') || n.includes('chive') || n.includes('thyme') ||
-               n.includes('rosemary') || n.includes('mint') || n.includes('herb');
-      });
-      const companions = bedPlants.filter(p => {
-        const n = p.name.toLowerCase();
-        return n.includes('marigold') || n.includes('nasturtium') || n.includes('flower') ||
-               n.includes('lavender') || n.includes('zinnia');
-      });
-      const other = bedPlants.filter(p => 
-        !tallPlants.includes(p) && !groundPlants.includes(p) && 
-        !herbs.includes(p) && !companions.includes(p)
+      // Parse spacing from plant data
+      function getSpacingInches(plant) {
+        const s = plant.spacing || '';
+        const match = s.match(/(\d+)/);
+        return match ? parseInt(match[1]) : 12;
+      }
+
+      // Calculate how many grid squares each plant needs
+      function sqftNeeded(plant) {
+        const spacing = getSpacingInches(plant);
+        const ppsf = plantsPerSqFt(spacing);
+        return Math.max(1, Math.round(1 / ppsf));
+      }
+
+      // Sort by height: tall at back (row 0), sprawling next, medium, herbs/companions at front
+      const heightOrder = { tall: 0, sprawling: 1, medium: 2, low: 3, herb: 4, companion: 5 };
+      const sorted = [...bedPlants].sort((a, b) => 
+        (heightOrder[getPlantHeight(a.name)] || 3) - (heightOrder[getPlantHeight(b.name)] || 3)
       );
 
-      // Layout order: tall at back (row 0), ground covers mid, herbs + companions at front/edges
-      const ordered = [...tallPlants, ...other, ...groundPlants, ...herbs, ...companions];
+      // Fill grid row by row, respecting each plant's space needs
+      let gridPos = 0;
+      const grid = new Array(totalCells).fill(null);
 
-      let r = 0, c = 0;
-
-      for (const plant of ordered) {
-        const spacingFt = parseInt(plant.spacing) || 12;
-        const cellsNeeded = Math.max(1, Math.round(spacingFt / 12));
+      for (const plant of sorted) {
+        const sqft = sqftNeeded(plant);
         const emoji = getEmoji(plant.name);
+        const spacingIn = getSpacingInches(plant);
+        const ppsf = plantsPerSqFt(spacingIn);
+        
+        // How many times this plant appears (based on bed size and plant needs)
+        // Each plant gets a proportional share of the bed
+        const share = Math.max(1, Math.round(totalCells / sorted.length / sqft));
         let placed = 0;
-        const maxPerPlant = Math.max(1, Math.floor((cols * rows * 0.6) / ordered.length) * cellsNeeded);
 
-        while (placed < maxPerPlant && r < rows) {
-          const key = bedIdx + '-' + (r * cols + c);
-          if (!cells[key]) {
-            cells[key] = { emoji, name: plant.name };
+        for (let i = gridPos; i < totalCells && placed < share; i += sqft) {
+          // Fill sqft consecutive cells with this plant
+          let canPlace = true;
+          for (let j = i; j < Math.min(i + sqft, totalCells); j++) {
+            if (grid[j] !== null) { canPlace = false; break; }
+          }
+          if (canPlace) {
+            for (let j = i; j < Math.min(i + sqft, totalCells); j++) {
+              grid[j] = { emoji, name: plant.name, sqft };
+            }
             placed++;
           }
-          c += cellsNeeded;
-          if (c >= cols) { c = 0; r++; }
+        }
+        if (placed > 0) gridPos += sqft;
+      }
+
+      // Fill any remaining empty cells with companions/herbs if available
+      const fillPlant = sorted.find(p => getPlantHeight(p.name) === 'companion' || getPlantHeight(p.name) === 'herb');
+      for (let i = 0; i < totalCells; i++) {
+        if (!grid[i] && fillPlant) {
+          grid[i] = { emoji: getEmoji(fillPlant.name), name: fillPlant.name, sqft: 1 };
         }
       }
 
-      // Build layout notes
-      if (tallPlants.length) notes.push(`🌿 Tall plants (${tallPlants.map(p=>p.name).join(', ')}) placed at back to avoid shading.`);
-      if (companions.length || herbs.length) notes.push(`🌸 Companion plants (${[...companions,...herbs].map(p=>p.name).slice(0,3).join(', ')}) placed at edges for pest protection.`);
-      if (groundPlants.length) notes.push(`🥬 Low-growing crops (${groundPlants.map(p=>p.name).slice(0,3).join(', ')}) fill mid-section for efficient use of space.`);
-      notes.push(`📐 Each square = 1 sq ft. Spacing follows square foot gardening method.`);
+      // Convert grid to cells object
+      for (let i = 0; i < totalCells; i++) {
+        if (grid[i]) {
+          const key = bedIdx + '-' + i;
+          cells[key] = grid[i];
+        }
+      }
+
+      // Build smart layout notes
+      const tallOnes = sorted.filter(p => getPlantHeight(p.name) === 'tall');
+      const sprawlers = sorted.filter(p => getPlantHeight(p.name) === 'sprawling');
+      const companions = sorted.filter(p => getPlantHeight(p.name) === 'companion');
+      const herbs = sorted.filter(p => getPlantHeight(p.name) === 'herb');
+      const bigPlants = sorted.filter(p => sqftNeeded(p) >= 4);
+
+      if (tallOnes.length) notes.push(`☀️ ${tallOnes.map(p=>p.name).join(', ')} placed at the north end — they grow tall and would shade plants behind them.`);
+      if (sprawlers.length) notes.push(`🌿 ${sprawlers.map(p=>p.name).join(', ')} need room to spread — given extra space or consider vertical training.`);
+      if (bigPlants.length) notes.push(`📐 ${bigPlants.map(p=>`${p.name} (${sqftNeeded(p)} sq ft each)`).join(', ')} — spacing matches square foot gardening method.`);
+      if (companions.length || herbs.length) notes.push(`🌸 ${[...companions,...herbs].map(p=>p.name).slice(0,3).join(', ')} placed strategically as pest deterrents and pollinator attractors.`);
+      notes.push(`✏️ Click any cell to repaint. Use the plant palette above to customize.`);
 
       return { cells, notes };
     }
