@@ -1398,85 +1398,130 @@ Notes: ${wiz.notes || 'none'}`;
       const notes = [];
       const totalCells = cols * rows;
 
-      // Parse spacing from plant data
       function getSpacingInches(plant) {
         const s = plant.spacing || '';
-        const match = s.match(/(\d+)/);
-        return match ? parseInt(match[1]) : 12;
+        const nums = s.match(/[0-9]+/g);
+        return nums ? parseInt(nums[0]) : 12;
       }
 
-      // Calculate how many grid squares each plant needs
-      function sqftNeeded(plant) {
-        const spacing = getSpacingInches(plant);
-        const ppsf = plantsPerSqFt(spacing);
-        return Math.max(1, Math.round(1 / ppsf));
+      // Square foot gardening: how many plants fit in ONE square foot
+      function ppsf(spacingIn) {
+        if (spacingIn <= 3)  return 16;
+        if (spacingIn <= 4)  return 9;
+        if (spacingIn <= 6)  return 4;
+        if (spacingIn <= 9)  return 1;
+        if (spacingIn <= 12) return 1;
+        if (spacingIn <= 18) return 0.5;  // 1 plant per 2 sq ft
+        if (spacingIn <= 24) return 0.25; // 1 plant per 4 sq ft
+        return 0.11;                       // 1 plant per 9 sq ft
       }
 
-      // Sort by height: tall at back (row 0), sprawling next, medium, herbs/companions at front
+      // How many GRID CELLS does one plant occupy
+      function cellsPerPlant(plant) {
+        const sp = getSpacingInches(plant);
+        return Math.max(1, Math.round(1 / ppsf(sp)));
+      }
+
+      // Sort: tall at back (top rows), companions/herbs at front (bottom rows)
       const heightOrder = { tall: 0, sprawling: 1, medium: 2, low: 3, herb: 4, companion: 5 };
-      const sorted = [...bedPlants].sort((a, b) => 
+      const sorted = [...bedPlants].sort((a, b) =>
         (heightOrder[getPlantHeight(a.name)] || 3) - (heightOrder[getPlantHeight(b.name)] || 3)
       );
 
-      // Fill grid row by row, respecting each plant's space needs
-      let gridPos = 0;
-      const grid = new Array(totalCells).fill(null);
+      // Build a 2D grid row by row
+      const grid = Array.from({length: rows}, () => new Array(cols).fill(null));
+
+      // For each plant, figure out how many instances fit given its footprint
+      // First calculate total cell demand
+      let totalDemand = sorted.reduce((sum, p) => sum + cellsPerPlant(p), 0);
+      const scale = totalCells / Math.max(totalDemand, totalCells);
+
+      let row = 0, col = 0;
+
+      function placeNext(r, c) {
+        // advance position
+        col = c; row = r;
+        if (col >= cols) { col = 0; row++; }
+      }
 
       for (const plant of sorted) {
-        const sqft = sqftNeeded(plant);
+        const cpp = cellsPerPlant(plant);
         const emoji = getEmoji(plant.name);
-        const spacingIn = getSpacingInches(plant);
-        const ppsf = plantsPerSqFt(spacingIn);
-        
-        // How many times this plant appears (based on bed size and plant needs)
-        // Each plant gets a proportional share of the bed
-        const share = Math.max(1, Math.round(totalCells / sorted.length / sqft));
+        const sp = getSpacingInches(plant);
+        const pp = ppsf(sp);
+
+        // How many instances of this plant to place
+        // For plants with pp >= 1 (small plants): fill proportional rows
+        // For plants with pp < 1 (big plants): place 1-2 instances
+        let instances;
+        if (pp >= 1) {
+          // Small plants: allocate a proportional slice of the bed
+          const allocatedCells = Math.max(cpp, Math.round((totalCells / sorted.length)));
+          instances = Math.max(1, Math.floor(allocatedCells / cpp) * pp);
+          instances = Math.round(instances);
+        } else {
+          // Big plants: 1 or 2 instances max
+          instances = Math.max(1, Math.round(scale * 2));
+        }
+
         let placed = 0;
-
-        for (let i = gridPos; i < totalCells && placed < share; i += sqft) {
-          // Fill sqft consecutive cells with this plant
-          let canPlace = true;
-          for (let j = i; j < Math.min(i + sqft, totalCells); j++) {
-            if (grid[j] !== null) { canPlace = false; break; }
+        while (placed < instances && row < rows) {
+          // Check if cpp cells fit starting at (row, col)
+          // For simplicity: fill cpp consecutive cells in row-major order
+          let fits = true;
+          let positions = [];
+          let r = row, c = col;
+          for (let k = 0; k < cpp; k++) {
+            if (r >= rows) { fits = false; break; }
+            if (grid[r][c] !== null) { fits = false; break; }
+            positions.push([r, c]);
+            c++;
+            if (c >= cols) { c = 0; r++; }
           }
-          if (canPlace) {
-            for (let j = i; j < Math.min(i + sqft, totalCells); j++) {
-              grid[j] = { emoji, name: plant.name, sqft };
-            }
+
+          if (fits && positions.length === cpp) {
+            positions.forEach(([pr, pc]) => {
+              grid[pr][pc] = { emoji, name: plant.name };
+            });
             placed++;
+            row = r; col = c;
+          } else {
+            // Skip to next cell
+            col++;
+            if (col >= cols) { col = 0; row++; }
           }
         }
-        if (placed > 0) gridPos += sqft;
       }
 
-      // Fill any remaining empty cells with companions/herbs if available
-      const fillPlant = sorted.find(p => getPlantHeight(p.name) === 'companion' || getPlantHeight(p.name) === 'herb');
-      for (let i = 0; i < totalCells; i++) {
-        if (!grid[i] && fillPlant) {
-          grid[i] = { emoji: getEmoji(fillPlant.name), name: fillPlant.name, sqft: 1 };
+      // Fill remaining empty cells with the best companion/herb
+      const filler = sorted.find(p => ['companion','herb'].includes(getPlantHeight(p.name)));
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (!grid[r][c] && filler) {
+            grid[r][c] = { emoji: getEmoji(filler.name), name: filler.name };
+          }
         }
       }
 
-      // Convert grid to cells object
-      for (let i = 0; i < totalCells; i++) {
-        if (grid[i]) {
-          const key = bedIdx + '-' + i;
-          cells[key] = grid[i];
+      // Convert to flat cell keys
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (grid[r][c]) cells[bedIdx + '-' + (r * cols + c)] = grid[r][c];
         }
       }
 
-      // Build smart layout notes
+      // Notes
       const tallOnes = sorted.filter(p => getPlantHeight(p.name) === 'tall');
-      const sprawlers = sorted.filter(p => getPlantHeight(p.name) === 'sprawling');
+      const bigOnes = sorted.filter(p => cellsPerPlant(p) >= 4);
       const companions = sorted.filter(p => getPlantHeight(p.name) === 'companion');
       const herbs = sorted.filter(p => getPlantHeight(p.name) === 'herb');
-      const bigPlants = sorted.filter(p => sqftNeeded(p) >= 4);
+      const smallOnes = sorted.filter(p => ppsf(getSpacingInches(p)) >= 4);
 
-      if (tallOnes.length) notes.push(`☀️ ${tallOnes.map(p=>p.name).join(', ')} placed at the north end — they grow tall and would shade plants behind them.`);
-      if (sprawlers.length) notes.push(`🌿 ${sprawlers.map(p=>p.name).join(', ')} need room to spread — given extra space or consider vertical training.`);
-      if (bigPlants.length) notes.push(`📐 ${bigPlants.map(p=>`${p.name} (${sqftNeeded(p)} sq ft each)`).join(', ')} — spacing matches square foot gardening method.`);
-      if (companions.length || herbs.length) notes.push(`🌸 ${[...companions,...herbs].map(p=>p.name).slice(0,3).join(', ')} placed strategically as pest deterrents and pollinator attractors.`);
-      notes.push(`✏️ Click any cell to repaint. Use the plant palette above to customize.`);
+      if (tallOnes.length) notes.push(`☀️ ${tallOnes.map(p=>p.name).join(', ')} at the north end — tallest plants won't shade shorter neighbors.`);
+      if (bigOnes.length) notes.push(`📐 ${bigOnes.map(p=>`${p.name} (${cellsPerPlant(p)} sq ft each)`).join(', ')} — given full room based on their spacing requirements.`);
+      if (smallOnes.length) notes.push(`🌱 ${smallOnes.map(p=>p.name).slice(0,3).join(', ')} are compact growers — multiple plants share each square foot.`);
+      if (companions.length || herbs.length) notes.push(`🌸 ${[...companions,...herbs].map(p=>p.name).slice(0,3).join(', ')} fill gaps as natural pest deterrents.`);
+      notes.push(`✏️ Click any cell to repaint. Use the plant palette above to customize your layout.`);
 
       return { cells, notes };
     }
